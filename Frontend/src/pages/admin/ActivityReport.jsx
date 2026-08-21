@@ -147,7 +147,6 @@ export default function ActivityReport() {
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const fetchLogs = async () => {
     setLoading(true);
@@ -170,62 +169,12 @@ export default function ActivityReport() {
     fetchLogs();
   }, []);
 
-  // Filter logs by selected category pill
-  const filteredLogs = useMemo(() => {
-    if (categoryFilter === "all") return logs;
-    if (categoryFilter === "clients") {
-      return logs.filter(l => (l.master_name || "").toLowerCase().includes("client") || (l.master_name || "").toLowerCase().includes("domain"));
-    }
-    if (categoryFilter === "uploads") {
-      return logs.filter(l => (l.master_name || "").toLowerCase().includes("upload") || l.change_type === "uploaded");
-    }
-    if (categoryFilter === "users") {
-      return logs.filter(l => (l.master_name || "").toLowerCase().includes("user") || (l.master_name || "").toLowerCase().includes("role"));
-    }
-    if (categoryFilter === "exports") {
-      return logs.filter(l => (l.master_name || "").toLowerCase().includes("export") || l.change_type === "exported");
-    }
-    if (categoryFilter === "settings") {
-      return logs.filter(l => (l.master_name || "").toLowerCase().includes("setting") || (l.master_name || "").toLowerCase().includes("keyword"));
-    }
-    return logs;
-  }, [logs, categoryFilter]);
-
-  // Compute KPI counts per activity category
-  const stats = useMemo(() => {
-    let clientsCount = 0;
-    let uploadsCount = 0;
-    let usersCount = 0;
-    let exportsCount = 0;
-    let settingsCount = 0;
-
-    logs.forEach(l => {
-      const master = (l.master_name || "").toLowerCase();
-      const change = (l.change_type || "").toLowerCase();
-
-      if (master.includes("client") || master.includes("domain")) clientsCount++;
-      else if (master.includes("upload") || change === "uploaded") uploadsCount++;
-      else if (master.includes("user") || master.includes("role")) usersCount++;
-      else if (master.includes("export") || change === "exported") exportsCount++;
-      else if (master.includes("setting") || master.includes("keyword")) settingsCount++;
-    });
-
-    return {
-      total: logs.length,
-      clients: clientsCount,
-      uploads: uploadsCount,
-      users: usersCount,
-      exports: exportsCount,
-      settings: settingsCount
-    };
-  }, [logs]);
-
   const handleExportCSV = () => {
-    if (filteredLogs.length === 0) return toast.error("No activity logs to export");
+    if (logs.length === 0) return toast.error("No activity logs to export");
     const headers = ["Log ID", "Username", "Module / Master", "Action Type", "Device ID", "Timestamp"];
     const csvRows = [
       headers.join(","),
-      ...filteredLogs.map(l => [
+      ...logs.map(l => [
         l.id,
         `"${l.username || 'System'}"`,
         `"${l.master_name}"`,
@@ -243,7 +192,7 @@ export default function ActivityReport() {
     link.click();
     document.body.removeChild(link);
 
-    toast.success(`Exported ${filteredLogs.length} activity logs to CSV`);
+    toast.success(`Exported ${logs.length} activity logs to CSV`);
   };
 
   const columns = useMemo(() => [
@@ -334,224 +283,16 @@ export default function ActivityReport() {
             className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
           >
             <i className="fa-solid fa-file-excel text-sm"></i>
-            Export Activity Logs CSV ({filteredLogs.length})
+            Export Activity Logs CSV ({logs.length})
           </button>
         </div>
 
-        {/* TOP KPI OVERVIEW CARDS */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          
-          {/* Card 1: All Logs */}
-          <div 
-            onClick={() => setCategoryFilter("all")}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-              categoryFilter === "all"
-                ? "bg-slate-900 text-white border-slate-900 shadow-md"
-                : "bg-white text-slate-800 border-slate-200 hover:border-slate-400"
-            }`}
-          >
-            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
-              categoryFilter === "all" ? "text-slate-300" : "text-slate-500"
-            }`}>
-              All Events
-            </span>
-            <h4 className="text-sm font-extrabold truncate mt-0.5">Total Logs</h4>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-lg font-black font-mono">{stats.total}</span>
-              <span className="text-xs font-bold opacity-80">records</span>
-            </div>
-          </div>
-
-          {/* Card 2: Clients & Domain Mapping */}
-          <div 
-            onClick={() => setCategoryFilter("clients")}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-              categoryFilter === "clients"
-                ? "bg-blue-600 text-white border-blue-700 shadow-md"
-                : "bg-white text-slate-800 border-slate-200 hover:border-blue-400"
-            }`}
-          >
-            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
-              categoryFilter === "clients" ? "text-blue-100" : "text-blue-600"
-            }`}>
-              Clients
-            </span>
-            <h4 className="text-sm font-extrabold truncate mt-0.5">Client & Domains</h4>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-lg font-black font-mono">{stats.clients}</span>
-              <span className="text-xs font-bold opacity-80">events</span>
-            </div>
-          </div>
-
-          {/* Card 3: File Uploads */}
-          <div 
-            onClick={() => setCategoryFilter("uploads")}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-              categoryFilter === "uploads"
-                ? "bg-purple-600 text-white border-purple-700 shadow-md"
-                : "bg-white text-slate-800 border-slate-200 hover:border-purple-400"
-            }`}
-          >
-            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
-              categoryFilter === "uploads" ? "text-purple-100" : "text-purple-600"
-            }`}>
-              File Ingestion
-            </span>
-            <h4 className="text-sm font-extrabold truncate mt-0.5">CSV/Excel Uploads</h4>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-lg font-black font-mono">{stats.uploads}</span>
-              <span className="text-xs font-bold opacity-80">uploads</span>
-            </div>
-          </div>
-
-          {/* Card 4: User Management */}
-          <div 
-            onClick={() => setCategoryFilter("users")}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-              categoryFilter === "users"
-                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
-                : "bg-white text-slate-800 border-slate-200 hover:border-emerald-400"
-            }`}
-          >
-            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
-              categoryFilter === "users" ? "text-emerald-100" : "text-emerald-600"
-            }`}>
-              Users & Roles
-            </span>
-            <h4 className="text-sm font-extrabold truncate mt-0.5">User Creation</h4>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-lg font-black font-mono">{stats.users}</span>
-              <span className="text-xs font-bold opacity-80">actions</span>
-            </div>
-          </div>
-
-          {/* Card 5: CSV Downloads & Exports */}
-          <div 
-            onClick={() => setCategoryFilter("exports")}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-              categoryFilter === "exports"
-                ? "bg-sky-600 text-white border-sky-700 shadow-md"
-                : "bg-white text-slate-800 border-slate-200 hover:border-sky-400"
-            }`}
-          >
-            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
-              categoryFilter === "exports" ? "text-sky-100" : "text-sky-600"
-            }`}>
-              Downloads
-            </span>
-            <h4 className="text-sm font-extrabold truncate mt-0.5">CSV Exports</h4>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-lg font-black font-mono">{stats.exports}</span>
-              <span className="text-xs font-bold opacity-80">downloads</span>
-            </div>
-          </div>
-
-          {/* Card 6: Settings & Rules */}
-          <div 
-            onClick={() => setCategoryFilter("settings")}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-              categoryFilter === "settings"
-                ? "bg-amber-600 text-white border-amber-700 shadow-md"
-                : "bg-white text-slate-800 border-slate-200 hover:border-amber-400"
-            }`}
-          >
-            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
-              categoryFilter === "settings" ? "text-amber-100" : "text-amber-600"
-            }`}>
-              Configuration
-            </span>
-            <h4 className="text-sm font-extrabold truncate mt-0.5">System Rules</h4>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-lg font-black font-mono">{stats.settings}</span>
-              <span className="text-xs font-bold opacity-80">events</span>
-            </div>
-          </div>
-
-        </div>
-
-        {/* CATEGORY FILTER TABS BAR */}
-        <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("all")}
-              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                categoryFilter === "all"
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              All Activity Logs ({logs.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("clients")}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                categoryFilter === "clients"
-                  ? "bg-blue-600 text-white shadow-sm"
-                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
-              }`}
-            >
-              👥 Client & Domain Logs ({stats.clients})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("uploads")}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                categoryFilter === "uploads"
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "bg-purple-50 text-purple-700 hover:bg-purple-100"
-              }`}
-            >
-              📁 CSV/Excel Uploads ({stats.uploads})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("users")}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                categoryFilter === "users"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-              }`}
-            >
-              👤 User & Role Creation ({stats.users})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("exports")}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                categoryFilter === "exports"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "bg-sky-50 text-sky-700 hover:bg-sky-100"
-              }`}
-            >
-              📥 CSV Downloads ({stats.exports})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setCategoryFilter("settings")}
-              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                categoryFilter === "settings"
-                  ? "bg-amber-600 text-white shadow-sm"
-                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
-              }`}
-            >
-              ⚙️ System Settings ({stats.settings})
-            </button>
-          </div>
-        </div>
-
-        {/* DATATABLE */}
+        {/* DIRECT DATATABLE DISPLAY */}
         <div className="flex-1 flex flex-col mb-8">
           <DataTable
             tableId="system_activity_report"
             title="Activity Report - Live System Audit Logs"
-            data={filteredLogs}
+            data={logs}
             columns={columns}
             loading={loading}
             searchPlaceholder="Search logs by username, module, action or details..."

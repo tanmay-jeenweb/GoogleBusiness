@@ -24,7 +24,7 @@ function ActivityDonutChart({ items, totalVal }) {
     const formattedTotal = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalVal || 0);
 
     return (
-        <div className="relative w-48 h-48 mx-auto flex items-center justify-center my-3">
+        <div className="relative w-44 h-44 mx-auto flex items-center justify-center my-2">
             <svg viewBox="0 0 160 160" className="w-full h-full transform -rotate-90">
                 <circle cx="80" cy="80" r={radius} fill="transparent" stroke="#f1f5f9" strokeWidth="16" />
                 {items.map((item, idx) => {
@@ -54,8 +54,8 @@ function ActivityDonutChart({ items, totalVal }) {
 
             {/* Donut Center Text */}
             <div className="absolute flex flex-col items-center justify-center text-center">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TOTAL BILLING</span>
-                <span className="text-sm font-black text-slate-900 font-mono leading-tight">{formattedTotal}</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">TOTAL</span>
+                <span className="text-sm font-black text-slate-900 leading-tight">{formattedTotal}</span>
             </div>
         </div>
     );
@@ -116,17 +116,13 @@ export default function UserHome() {
         active_accounts: 0,
         suspended_accounts: 0,
         assigned_licenses: 0,
-        purchased_licenses: 0,
-        sku_distribution: []
+        purchased_licenses: 0
     };
 
     const gm = overviewData?.growth_metrics || {
         total_billing: 0,
         unique_customer_accounts: 0,
         committed_seats_active: 0,
-        new_accounts_count: 0,
-        renewals_count: 0,
-        new_commitments_count: 0,
         commitments_count: 0,
         commitment_increases_count: 0
     };
@@ -149,29 +145,24 @@ export default function UserHome() {
     const displayedAccounts = filteredAccounts.slice(0, topLimit);
 
     return (
-        <div className="flex flex-col min-h-screen bg-slate-50 font-sans text-slate-900">
-            <Navbar title="Financial Intelligence" />
+        <div className="flex flex-col min-h-screen bg-slate-50/60 font-sans text-slate-900">
+            <Navbar title="Dashboard" />
 
-            <main className="flex-1 w-full max-w-[96rem] mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+            <main className="flex-1 w-full max-w-[96rem] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
                 
-                {/* Executive Header */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+                {/* Minimal Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80">
                     <div>
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-                                Real-Time Executive Overview
-                            </span>
-                        </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-                            Executive Financial Dashboard
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                            Executive Dashboard
                         </h1>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                            High-level portfolio performance, active license commitments, and revenue aggregations
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                            Real-time billing performance, license commitments & top domain accounts
                         </p>
                     </div>
 
-                    {/* Dynamic Billing Month Selector */}
-                    <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-2xs self-start sm:self-auto">
+                    {/* Minimal Month Selector Pill */}
+                    <div className="flex items-center gap-2 bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 shadow-2xs self-start sm:self-auto">
                         <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
                             <i className="fa-solid fa-calendar text-blue-600"></i> Billing Period:
                         </span>
@@ -187,144 +178,80 @@ export default function UserHome() {
                     </div>
                 </div>
 
-                {/* 1. RESELLER PORTFOLIO SUMMARY BANNER */}
-                <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 shadow-xl space-y-5 relative overflow-hidden">
-                    <div className="flex items-center justify-between pb-3 border-b border-white/10">
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-blue-400">
-                                <i className="fa-solid fa-layer-group"></i>
-                            </div>
-                            <div>
-                                <h2 className="text-xs font-black uppercase tracking-wider text-blue-200">
-                                    Reseller Portfolio Overview
-                                </h2>
-                                <p className="text-[11px] text-slate-400">Aggregated master accounts registry</p>
-                            </div>
-                        </div>
-                        <span className="px-3 py-1 rounded-full text-[11px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30">
-                            {po.total_accounts} Total Domains
-                        </span>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* Domain Accounts Pillar */}
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex flex-col justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">CUSTOMER ACCOUNTS</span>
-                            <span className="text-3xl font-black font-mono block mb-2">{po.total_accounts}</span>
-                            <div className="flex items-center gap-2 text-xs font-bold pt-2 border-t border-white/10">
-                                <span className="text-emerald-400 px-2 py-0.5 bg-emerald-500/10 rounded-md">{po.active_accounts} Active</span>
-                                <span className="text-amber-400 px-2 py-0.5 bg-amber-500/10 rounded-md">{po.suspended_accounts} Suspended</span>
-                            </div>
-                        </div>
-
-                        {/* License Allocations Pillar */}
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex flex-col justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">LICENSE ALLOCATIONS</span>
-                            <span className="text-3xl font-black font-mono block mb-2">{po.assigned_licenses} / {po.purchased_licenses}</span>
-                            <span className="text-xs text-slate-400 font-semibold block pt-2 border-t border-white/10">
-                                Assigned / Purchased Reseller Seats
-                            </span>
-                        </div>
-
-                        {/* SKU Distribution Pillar */}
-                        <div className="bg-white/5 p-4 rounded-2xl border border-white/10 flex flex-col justify-between">
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-2">
-                                WORKSPACE SKU DISTRIBUTION
-                            </span>
-                            <div className="space-y-1.5 text-xs">
-                                {po.sku_distribution.length > 0 ? (
-                                    po.sku_distribution.map((item, idx) => (
-                                        <div key={idx} className="flex items-center justify-between text-slate-300">
-                                            <span className="truncate mr-2 text-[11px] font-medium">{item.sku}</span>
-                                            <span className="font-mono text-[11px] text-white font-bold bg-white/10 px-2 py-0.5 rounded">{item.count}</span>
-                                        </div>
-                                    ))
-                                ) : (
-                                    <span className="text-xs text-slate-400">No SKU data ingested</span>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* 2. 4 ESSENTIAL EXECUTIVE KPI CARDS */}
+                {/* 4 CLEAN MINIMAL KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     
-                    {/* 1. Total Invoiced Billing */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-                        <div>
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Total Invoiced Billing</span>
-                            <span className="text-2xl font-black text-slate-900 font-mono block">{formatINR(gm.total_billing)}</span>
-                            <span className="text-[11px] font-semibold text-emerald-600 mt-1 block">Live Ingested Sum</span>
+                    {/* Card 1: Total Invoiced Billing */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Invoiced Billing</span>
+                            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">
+                                <i className="fa-solid fa-indian-rupee-sign"></i>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl shrink-0">
-                            <i className="fa-solid fa-indian-rupee-sign"></i>
-                        </div>
+                        <span className="text-2xl font-black text-slate-900 font-mono block">{formatINR(gm.total_billing)}</span>
+                        <span className="text-[11px] font-bold text-emerald-600 mt-1 block">Live Database Ingested</span>
                     </div>
 
-                    {/* 2. Unique Customer Accounts */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-                        <div>
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Customer Accounts</span>
-                            <span className="text-2xl font-black text-slate-900 font-mono block">{gm.unique_customer_accounts} Domains</span>
-                            <span className="text-[11px] font-semibold text-blue-600 mt-1 block">Unique Ingested Accounts</span>
+                    {/* Card 2: Active Accounts */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Customer Domains</span>
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm">
+                                <i className="fa-solid fa-globe"></i>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xl shrink-0">
-                            <i className="fa-solid fa-globe"></i>
-                        </div>
+                        <span className="text-2xl font-black text-slate-900 font-mono block">{po.active_accounts || gm.unique_customer_accounts} Domains</span>
+                        <span className="text-[11px] font-bold text-blue-600 mt-1 block">{po.total_accounts} Total Registered</span>
                     </div>
 
-                    {/* 3. Committed Seats Active */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-                        <div>
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Committed Seats Active</span>
-                            <span className="text-2xl font-black text-blue-700 font-mono block">{gm.committed_seats_active} Seats</span>
-                            <span className="text-[11px] font-semibold text-indigo-600 mt-1 block">Active License Seats</span>
+                    {/* Card 3: Committed Seats Active */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Committed Seats</span>
+                            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm">
+                                <i className="fa-solid fa-chair"></i>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xl shrink-0">
-                            <i className="fa-solid fa-chair"></i>
-                        </div>
+                        <span className="text-2xl font-black text-indigo-700 font-mono block">{gm.committed_seats_active} Seats</span>
+                        <span className="text-[11px] font-bold text-indigo-600 mt-1 block">Active Workspace Licenses</span>
                     </div>
 
-                    {/* 4. Commitment Events */}
-                    <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
-                        <div>
-                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Commitment Events</span>
-                            <span className="text-2xl font-black text-purple-700 font-mono block">{gm.commitments_count + gm.commitment_increases_count} Events</span>
-                            <span className="text-[11px] font-semibold text-purple-600 mt-1 block">Active Commitment Changes</span>
+                    {/* Card 4: Commitment Changes */}
+                    <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Commitment Events</span>
+                            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-sm">
+                                <i className="fa-solid fa-chart-line"></i>
+                            </div>
                         </div>
-                        <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xl shrink-0">
-                            <i className="fa-solid fa-chart-line"></i>
-                        </div>
+                        <span className="text-2xl font-black text-purple-700 font-mono block">{gm.commitments_count + gm.commitment_increases_count} Events</span>
+                        <span className="text-[11px] font-bold text-purple-600 mt-1 block">Contract Upgrades & Renewals</span>
                     </div>
 
                 </div>
 
-                {/* 3. VISUAL ANALYTICS ROW: DONUT CHART + CONTRACT PLAN CLASSIFICATION */}
+                {/* 2-COLUMN MINIMAL ANALYTICS ROW */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                     
-                    {/* Left: Billing by Activity Type Donut Visualizer */}
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                    {/* Left: Activity Type Breakdown */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
                         <div>
                             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs">
-                                        <i className="fa-solid fa-chart-pie"></i>
-                                    </div>
-                                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                                        Billing by Activity Type
-                                    </h3>
-                                </div>
+                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                    <i className="fa-solid fa-chart-pie text-blue-600"></i> Activity Breakdown
+                                </h3>
+                                <span className="text-[11px] font-bold text-slate-400">{billingMonth}</span>
                             </div>
 
                             <ActivityDonutChart items={activityTypes} totalVal={totalActivityBilling} />
                         </div>
 
-                        {/* Legend Grid */}
-                        <div className="pt-4 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        {/* Minimal Legend Grid */}
+                        <div className="pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
                             {activityTypes.map((item, idx) => (
-                                <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/60 flex flex-col justify-between">
-                                    <div className="flex items-center gap-1.5 mb-1">
+                                <div key={idx} className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 flex flex-col justify-between">
+                                    <div className="flex items-center gap-1.5 mb-0.5">
                                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ACTIVITY_COLORS[idx % ACTIVITY_COLORS.length] }}></span>
                                         <span className="text-[11px] font-bold text-slate-600 truncate">{item.type}</span>
                                     </div>
@@ -334,57 +261,43 @@ export default function UserHome() {
                         </div>
                     </div>
 
-                    {/* Right: Contract Plan Classification Breakdown */}
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between space-y-4">
+                    {/* Right: Contract Plan Distribution */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4">
                         <div>
                             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center text-xs">
-                                        <i className="fa-solid fa-layer-group"></i>
-                                    </div>
-                                    <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                                        Contract Plan Classification
-                                    </h3>
-                                </div>
-                                <span className="text-[11px] font-bold text-slate-400">Usage vs Commitment</span>
+                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                    <i className="fa-solid fa-layer-group text-purple-600"></i> Plan Commitments
+                                </h3>
+                                <span className="text-[11px] font-bold text-slate-400">Flexy vs Commit</span>
                             </div>
 
-                            <div className="space-y-3 pt-4">
+                            <div className="space-y-3 pt-3">
                                 
                                 {/* Flexy Plan */}
-                                <div className="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-extrabold text-purple-900">Flexy Plan (Usage Billing)</span>
-                                        <span className="text-xs font-mono font-black text-purple-950">{formatINR(cp.flexy_plan.amount)}</span>
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/70 flex items-center justify-between">
+                                    <div>
+                                        <span className="text-xs font-extrabold text-slate-900 block">Flexy Plan (Usage-Based)</span>
+                                        <span className="text-[11px] text-slate-500 font-medium">{cp.flexy_plan.seats} Seats Active • {cp.flexy_plan.txns} Txns</span>
                                     </div>
-                                    <div className="flex items-center justify-between text-[11px] font-semibold text-purple-700">
-                                        <span>{cp.flexy_plan.seats} Seats Active</span>
-                                        <span>{cp.flexy_plan.txns} Transactions</span>
-                                    </div>
+                                    <span className="text-xs font-mono font-black text-slate-900">{formatINR(cp.flexy_plan.amount)}</span>
                                 </div>
 
                                 {/* Monthly Commit */}
-                                <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-extrabold text-blue-900">Monthly Commit (Range)</span>
-                                        <span className="text-xs font-mono font-black text-blue-950">{formatINR(cp.monthly_commit.amount)}</span>
+                                <div className="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100 flex items-center justify-between">
+                                    <div>
+                                        <span className="text-xs font-extrabold text-blue-900 block">Monthly Commitments</span>
+                                        <span className="text-[11px] text-blue-700 font-medium">{cp.monthly_commit.seats} Seats Active • {cp.monthly_commit.txns} Txns</span>
                                     </div>
-                                    <div className="flex items-center justify-between text-[11px] font-semibold text-blue-700">
-                                        <span>{cp.monthly_commit.seats} Seats Active</span>
-                                        <span>{cp.monthly_commit.txns} Transactions</span>
-                                    </div>
+                                    <span className="text-xs font-mono font-black text-blue-950">{formatINR(cp.monthly_commit.amount)}</span>
                                 </div>
 
                                 {/* Yearly Commit */}
-                                <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs font-extrabold text-emerald-900">Yearly Commit (Annual)</span>
-                                        <span className="text-xs font-mono font-black text-emerald-950">{formatINR(cp.yearly_commit.amount)}</span>
+                                <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100 flex items-center justify-between">
+                                    <div>
+                                        <span className="text-xs font-extrabold text-emerald-900 block">Yearly Commitments (Annual)</span>
+                                        <span className="text-[11px] text-emerald-700 font-medium">{cp.yearly_commit.seats} Seats Active • {cp.yearly_commit.txns} Txns</span>
                                     </div>
-                                    <div className="flex items-center justify-between text-[11px] font-semibold text-emerald-700">
-                                        <span>{cp.yearly_commit.seats} Seats Active</span>
-                                        <span>{cp.yearly_commit.txns} Transactions</span>
-                                    </div>
+                                    <span className="text-xs font-mono font-black text-emerald-950">{formatINR(cp.yearly_commit.amount)}</span>
                                 </div>
 
                             </div>
@@ -393,21 +306,16 @@ export default function UserHome() {
 
                 </div>
 
-                {/* 4. TOP ACCOUNTS BY MONTHLY BILLING DATATABLE */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6 space-y-4">
+                {/* TOP DOMAIN ACCOUNTS TABLE */}
+                <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden p-6 space-y-4">
                     
-                    {/* Datatable Controls */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                        <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center text-xs">
-                                <i className="fa-solid fa-trophy"></i>
-                            </div>
-                            <div>
-                                <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                                    Top Accounts by Monthly Billing
-                                </h3>
-                                <p className="text-[11px] text-slate-400">Domains ranked by transaction sum in {billingMonth}</p>
-                            </div>
+                    {/* Datatable Header Controls */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-100">
+                        <div>
+                            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                <i className="fa-solid fa-trophy text-amber-500"></i> Top Accounts by Billing
+                            </h3>
+                            <p className="text-[11px] text-slate-400">Domains ranked by transaction sum in {billingMonth}</p>
                         </div>
 
                         <div className="flex items-center gap-3">
@@ -423,7 +331,7 @@ export default function UserHome() {
                                 />
                             </div>
 
-                            {/* Show count selector */}
+                            {/* Limit Selector */}
                             <select
                                 value={topLimit}
                                 onChange={(e) => setTopLimit(Number(e.target.value))}
@@ -439,22 +347,21 @@ export default function UserHome() {
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse text-xs">
                             <thead>
-                                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                                    <th className="py-3.5 px-4 w-12 text-center">Rank</th>
-                                    <th className="py-3.5 px-4">Domain Name</th>
-                                    <th className="py-3.5 px-4 font-mono">Customer ID</th>
-                                    <th className="py-3.5 px-4 text-center">Txns</th>
-                                    <th className="py-3.5 px-4 text-center font-mono">Active Seats</th>
-                                    <th className="py-3.5 px-4 text-right font-mono">Total Billing (INR)</th>
-                                    <th className="py-3.5 px-4">Primary Activity</th>
+                                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
+                                    <th className="py-3 px-4 w-12 text-center">Rank</th>
+                                    <th className="py-3 px-4">Domain Name</th>
+                                    <th className="py-3 px-4 font-mono">Customer ID</th>
+                                    <th className="py-3 px-4 text-center">Txns</th>
+                                    <th className="py-3 px-4 text-center font-mono">Active Seats</th>
+                                    <th className="py-3 px-4 text-right font-mono">Total Billing (INR)</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {loading ? (
                                     <tr>
-                                        <td colSpan="7" className="py-12 text-center text-slate-400">
+                                        <td colSpan="6" className="py-12 text-center text-slate-400">
                                             <i className="fa-solid fa-circle-notch fa-spin text-xl mb-2 text-blue-600 block"></i>
-                                            Loading top accounts from MySQL...
+                                            Loading top accounts...
                                         </td>
                                     </tr>
                                 ) : displayedAccounts.length > 0 ? (
@@ -472,7 +379,7 @@ export default function UserHome() {
                                             </td>
 
                                             {/* Customer ID */}
-                                            <td className="py-3 px-4 font-mono font-bold text-slate-600 whitespace-nowrap">
+                                            <td className="py-3 px-4 font-mono font-bold text-slate-500 whitespace-nowrap">
                                                 {row.customer_id}
                                             </td>
 
@@ -490,19 +397,12 @@ export default function UserHome() {
                                             <td className="py-3 px-4 text-right font-extrabold text-emerald-700 font-mono">
                                                 {formatINR(row.total_billing)}
                                             </td>
-
-                                            {/* Primary Activity */}
-                                            <td className="py-3 px-4 text-slate-600 font-semibold capitalize">
-                                                <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] border border-slate-200">
-                                                    {row.primary_activities || 'new account'}
-                                                </span>
-                                            </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="7" className="py-12 text-center text-slate-400 text-xs">
-                                            No top accounts data available.
+                                        <td colSpan="6" className="py-12 text-center text-slate-400 text-xs">
+                                            No domain accounts found matching your filter.
                                         </td>
                                     </tr>
                                 )}

@@ -337,30 +337,45 @@ const getAnnualFinancialMatrix = async (year = 2026) => {
     } catch (e) {}
 
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNamesFull = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+    const monthNamesShort = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+    const parseMonthIndex = (tDate) => {
+        const dLower = String(tDate || '').toLowerCase().trim();
+        if (!dLower) return 7;
+        for (let i = 0; i < monthNamesFull.length; i++) {
+            if (dLower.includes(monthNamesFull[i])) return i;
+        }
+        for (let i = 0; i < monthNamesShort.length; i++) {
+            if (dLower.includes(monthNamesShort[i])) return i;
+        }
+        const numMatch = dLower.match(/^(\d{1,2})[\/\-]/) || dLower.match(/[\/\-](\d{1,2})[\/\-]/);
+        if (numMatch) {
+            const mNum = parseInt(numMatch[1]);
+            if (mNum >= 1 && mNum <= 12) return mNum - 1;
+        }
+        return 7;
+    };
+
     const matrixMap = new Map();
 
     actRows.forEach(a => {
         const desc = String(a.description || '').toLowerCase();
         if (desc.includes('starting balance') || desc.includes('ending balance')) return;
 
-        const dName = a.domain_name && a.domain_name !== 'N/A' ? String(a.domain_name).trim() : null;
-        if (!dName) return;
+        let dName = a.domain_name && a.domain_name !== 'N/A' && String(a.domain_name).trim() !== '' ? String(a.domain_name).trim() : null;
+        if (!dName) {
+            dName = a.description && String(a.description).trim() !== '' ? String(a.description).trim() : 'Statement Tax / Other Charges';
+        }
 
         const dKey = dName.toLowerCase();
         const amt = parseFloat(a.amount) || 0;
         
-        let plan = a.sku_plan || a.product || 'Google Workspace Business Starter';
+        let plan = a.sku_plan || a.product || (dName.toLowerCase().includes('gst') || dName.toLowerCase().includes('tax') ? 'Statement Tax' : 'Google Workspace Business Starter');
         if (plan.toLowerCase().includes('starter')) plan = 'Google Workspace Business Starter';
         else if (plan.toLowerCase().includes('standard')) plan = 'Google Workspace Business Standard';
 
-        const dateStr = String(a.transaction_date || '');
-        let mIdx = 7;
-        for (let i = 0; i < monthNames.length; i++) {
-            if (dateStr.toLowerCase().includes(monthNames[i].toLowerCase())) {
-                mIdx = i;
-                break;
-            }
-        }
+        const mIdx = parseMonthIndex(a.transaction_date);
 
         if (!matrixMap.has(dKey)) {
             matrixMap.set(dKey, {

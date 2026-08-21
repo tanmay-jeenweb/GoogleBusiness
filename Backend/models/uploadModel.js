@@ -125,24 +125,31 @@ const cleanCompany = (comp) => {
 // Check existing Account Activity record with smart fallback
 const findExistingAccountActivity = async (company, data) => {
     const comp = cleanCompany(company);
+    const amt = data.amount ? parseFloat(String(data.amount).replace(/,/g, "")) : 0.00;
+
     if (!data.order_number || data.order_number === 'N/A') {
         if (!data.domain_name || data.domain_name === 'N/A' || !data.transaction_date || data.transaction_date === 'N/A') return null;
         const [rows] = await db.execute(`
             SELECT * FROM ${comp}_account_activities 
             WHERE domain_name = ? AND transaction_date = ? AND amount = ?
             LIMIT 1
-        `, [data.domain_name, data.transaction_date, data.amount ? parseFloat(String(data.amount).replace(/,/g, "")) : 0.00]);
+        `, [data.domain_name, data.transaction_date, amt]);
         return rows.length > 0 ? rows[0] : null;
     }
     const query = `
         SELECT * FROM ${comp}_account_activities 
-        WHERE order_number = ? AND (customer_id = ? OR domain_name = ?)
+        WHERE order_number = ? 
+          AND (customer_id = ? OR domain_name = ?)
+          AND (transaction_date = ? OR transaction_date IS NULL OR transaction_date = 'N/A')
+          AND amount = ?
         LIMIT 1
     `;
     const [rows] = await db.execute(query, [
         data.order_number,
         data.customer_id || '',
-        data.domain_name || ''
+        data.domain_name || '',
+        data.transaction_date || '',
+        amt
     ]);
     return rows.length > 0 ? rows[0] : null;
 };

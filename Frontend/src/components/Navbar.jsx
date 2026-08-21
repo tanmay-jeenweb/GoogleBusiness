@@ -218,11 +218,13 @@ export default function Navbar() {
     return (
         <nav className="bg-white shadow-sm border-b border-slate-200 flex flex-col relative z-50">
             {/* First Row */}
-            <div className="px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative z-40">
+            <div className="px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between relative z-40">
                 <div className="flex items-center gap-2 select-none cursor-pointer" onClick={() => navigate("/user/home")}>
-                    <span className="text-2xl font-black tracking-tighter bg-gradient-to-r from-blue-600 via-sky-500 to-teal-400 bg-clip-text text-transparent">
-                        Google Business
-                    </span>
+                    <img 
+                        src="/Untitled_design-removebg-preview.png" 
+                        alt="Billing Engine Logo" 
+                        className="h-16 sm:h-20 w-auto object-contain transition-transform duration-200 hover:scale-105" 
+                    />
                 </div>
 
                 <div className="flex items-center gap-6">

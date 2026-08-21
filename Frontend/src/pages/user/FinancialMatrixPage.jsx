@@ -156,10 +156,11 @@ export default function FinancialMatrixPage() {
                     <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs flex items-center justify-between">
                         <div>
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Active Customer Domains</span>
-                            <span className="text-2xl font-black text-slate-900 font-mono mt-1 block">{domainGroupIndexMap.size} Domains ({filteredRows.length} Rows)</span>
+                            <span className="text-2xl font-black text-slate-900 font-mono mt-1 block">{domainGroupIndexMap.size} Domains</span>
+                            <span className="text-[11px] font-bold text-blue-600 mt-1 block">Unique Ingested Accounts</span>
                         </div>
                         <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-lg">
-                            <i className="fa-solid fa-table-cells"></i>
+                            <i className="fa-solid fa-globe"></i>
                         </div>
                     </div>
 
@@ -167,6 +168,7 @@ export default function FinancialMatrixPage() {
                         <div>
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Annual Invoiced Total</span>
                             <span className="text-2xl font-black text-emerald-700 font-mono mt-1 block">{formatINR(filteredGrandTotal)}</span>
+                            <span className="text-[11px] font-bold text-emerald-600 mt-1 block">Live Database Ingested</span>
                         </div>
                         <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">
                             <i className="fa-solid fa-indian-rupee-sign"></i>
@@ -177,6 +179,7 @@ export default function FinancialMatrixPage() {
                         <div>
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Selected Calendar Year</span>
                             <span className="text-2xl font-black text-indigo-700 font-mono mt-1 block">{selectedYear}</span>
+                            <span className="text-[11px] font-bold text-indigo-600 mt-1 block">12-Month Billing Grid</span>
                         </div>
                         <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg">
                             <i className="fa-regular fa-calendar"></i>

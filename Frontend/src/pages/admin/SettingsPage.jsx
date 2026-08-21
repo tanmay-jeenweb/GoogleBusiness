@@ -2,11 +2,8 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import Navbar from "../../components/Navbar";
 import { fetchKeywordRules, createKeywordRule, updateKeywordRule, deleteKeywordRule } from "../../api/settingsApi";
-import { useNavigate } from "react-router-dom";
 
 export default function SettingsPage() {
-    const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState("activity_rules"); // 'activity_rules' | 'users' | 'history' | 'audit' | 'general'
     const [rules, setRules] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -115,261 +112,131 @@ export default function SettingsPage() {
         <div className="flex flex-col min-h-screen bg-slate-50 font-sans text-slate-900">
             <Navbar title="System Settings" />
 
-            <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-8">
+            <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
                 
                 {/* Header Title */}
-                <div className="pb-6 border-b border-slate-200">
-                    <div className="flex items-center gap-2 mb-1">
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
-                            Management Suite
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+                    <div>
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                                Management Suite
+                            </span>
+                        </div>
+                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                            System Configuration
+                        </h1>
+                        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                            Configure description parsing rules and keyword priorities for transaction categorization
+                        </p>
+                    </div>
+
+                    <button
+                        onClick={openCreateModal}
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
+                    >
+                        <i className="fa-solid fa-plus text-xs"></i>
+                        Create Keyword Rule
+                    </button>
+                </div>
+
+                {/* MAIN CONTENT: ACTIVITY KEYWORD RULES TABLE */}
+                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
+                        <div>
+                            <h3 className="text-base font-extrabold text-slate-900">
+                                Description Parsing Keywords
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Keyword priority rules automatically categorize uploaded reseller billing transactions
+                            </p>
+                        </div>
+
+                        <span className="px-3 py-1 bg-slate-100 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-700 self-start sm:self-auto">
+                            {rules.length} Configured Rules
                         </span>
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-                        System Configuration
-                    </h1>
-                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                        Manage parsing keywords, team accounts, and audit log tracking
-                    </p>
-                </div>
 
-                {/* Tabs Navigation */}
-                <div className="flex items-center gap-2 border-b border-slate-200 overflow-x-auto pb-1">
-                    <button
-                        onClick={() => setActiveTab("activity_rules")}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                            activeTab === "activity_rules"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                        }`}
-                    >
-                        Activity Rules
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("users")}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                            activeTab === "users"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                        }`}
-                    >
-                        Users Management
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("history")}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                            activeTab === "history"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                        }`}
-                    >
-                        Import History
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("audit")}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                            activeTab === "audit"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                        }`}
-                    >
-                        System Audit Logs
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("general")}
-                        className={`px-4 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
-                            activeTab === "general"
-                                ? "bg-blue-600 text-white shadow-sm"
-                                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-                        }`}
-                    >
-                        General Config
-                    </button>
-                </div>
-
-                {/* TAB 1: ACTIVITY RULES */}
-                {activeTab === "activity_rules" && (
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-                            <div>
-                                <h3 className="text-lg font-extrabold text-slate-900">
-                                    Description parsing keywords
-                                </h3>
-                                <p className="text-xs text-slate-500 mt-0.5">
-                                    Configure keyword priorities to map transactions to activity categories
-                                </p>
-                            </div>
-
-                            <button
-                                onClick={openCreateModal}
-                                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
-                            >
-                                <i className="fa-solid fa-plus text-xs"></i>
-                                Create Keyword Rule
-                            </button>
-                        </div>
-
-                        {/* Keyword Rules Table */}
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse text-xs">
-                                <thead>
-                                    <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                                        <th className="py-3.5 px-4">Keyword Match</th>
-                                        <th className="py-3.5 px-4">Activity Classification</th>
-                                        <th className="py-3.5 px-4 text-center">Priority</th>
-                                        <th className="py-3.5 px-4 text-center">Status</th>
-                                        <th className="py-3.5 px-4 text-right">Actions</th>
+                    {/* Keyword Rules Table */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                                    <th className="py-3.5 px-4">Keyword Match</th>
+                                    <th className="py-3.5 px-4">Activity Classification</th>
+                                    <th className="py-3.5 px-4 text-center">Priority</th>
+                                    <th className="py-3.5 px-4 text-center">Status</th>
+                                    <th className="py-3.5 px-4 text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {loading ? (
+                                    <tr>
+                                        <td colSpan="5" className="py-12 text-center text-slate-400">
+                                            <i className="fa-solid fa-circle-notch fa-spin text-xl mb-2 text-blue-600 block"></i>
+                                            Loading keyword rules from MySQL...
+                                        </td>
                                     </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100">
-                                    {loading ? (
-                                        <tr>
-                                            <td colSpan="5" className="py-12 text-center text-slate-400">
-                                                <i className="fa-solid fa-circle-notch fa-spin text-xl mb-2 text-blue-600 block"></i>
-                                                Loading keyword rules from MySQL...
+                                ) : rules.length > 0 ? (
+                                    rules.map((rule) => (
+                                        <tr key={rule.id} className="hover:bg-slate-50/80 transition-colors">
+                                            
+                                            {/* Keyword Match */}
+                                            <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">
+                                                "{rule.keyword_match}"
+                                            </td>
+
+                                            {/* Activity Classification */}
+                                            <td className="py-3.5 px-4 font-semibold text-blue-700 capitalize">
+                                                {rule.activity_classification}
+                                            </td>
+
+                                            {/* Priority */}
+                                            <td className="py-3.5 px-4 text-center font-extrabold text-slate-800 font-mono">
+                                                {rule.priority}
+                                            </td>
+
+                                            {/* Status */}
+                                            <td className="py-3.5 px-4 text-center">
+                                                <button
+                                                    onClick={() => toggleRuleStatus(rule)}
+                                                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border transition-all cursor-pointer ${
+                                                        rule.status === "ACTIVE"
+                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                                            : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                                                    }`}
+                                                >
+                                                    {rule.status}
+                                                </button>
+                                            </td>
+
+                                            {/* Actions */}
+                                            <td className="py-3.5 px-4 text-right space-x-2">
+                                                <button
+                                                    onClick={() => openEditModal(rule)}
+                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
+                                                >
+                                                    Edit
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(rule.id)}
+                                                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
+                                                >
+                                                    Delete
+                                                </button>
                                             </td>
                                         </tr>
-                                    ) : rules.length > 0 ? (
-                                        rules.map((rule) => (
-                                            <tr key={rule.id} className="hover:bg-slate-50/80 transition-colors">
-                                                
-                                                {/* Keyword Match */}
-                                                <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">
-                                                    "{rule.keyword_match}"
-                                                </td>
-
-                                                {/* Activity Classification */}
-                                                <td className="py-3.5 px-4 font-semibold text-blue-700 capitalize">
-                                                    {rule.activity_classification}
-                                                </td>
-
-                                                {/* Priority */}
-                                                <td className="py-3.5 px-4 text-center font-extrabold text-slate-800 font-mono">
-                                                    {rule.priority}
-                                                </td>
-
-                                                {/* Status */}
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <button
-                                                        onClick={() => toggleRuleStatus(rule)}
-                                                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border transition-all cursor-pointer ${
-                                                            rule.status === "ACTIVE"
-                                                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                                                : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
-                                                        }`}
-                                                    >
-                                                        {rule.status}
-                                                    </button>
-                                                </td>
-
-                                                {/* Actions */}
-                                                <td className="py-3.5 px-4 text-right space-x-2">
-                                                    <button
-                                                        onClick={() => openEditModal(rule)}
-                                                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
-                                                    >
-                                                        Edit
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(rule.id)}
-                                                        className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
-                                                    >
-                                                        Delete
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="5" className="py-12 text-center text-slate-400 text-xs">
-                                                No keyword rules configured.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan="5" className="py-12 text-center text-slate-400 text-xs">
+                                            No keyword rules configured.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
-                )}
-
-                {/* TAB 2: USERS MANAGEMENT SHORTCUT */}
-                {activeTab === "users" && (
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center space-y-4">
-                        <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 flex items-center justify-center mx-auto text-xl font-bold">
-                            <i className="fa-solid fa-users-gear"></i>
-                        </div>
-                        <h3 className="text-xl font-extrabold text-slate-900">User Master & Control</h3>
-                        <p className="text-xs text-slate-500 max-w-md mx-auto">
-                            Manage member accounts, toggle active/inactive status, approve new logins, and authorize devices.
-                        </p>
-                        <button
-                            onClick={() => navigate("/admin/dashboard")}
-                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer inline-flex items-center gap-2"
-                        >
-                            Open Users Master
-                            <i className="fa-solid fa-arrow-right text-xs"></i>
-                        </button>
-                    </div>
-                )}
-
-                {/* TAB 3: IMPORT HISTORY SHORTCUT */}
-                {activeTab === "history" && (
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center space-y-4">
-                        <div className="w-14 h-14 bg-sky-50 text-sky-600 rounded-2xl border border-sky-100 flex items-center justify-center mx-auto text-xl font-bold">
-                            <i className="fa-solid fa-cloud-arrow-up"></i>
-                        </div>
-                        <h3 className="text-xl font-extrabold text-slate-900">Import History & Files</h3>
-                        <p className="text-xs text-slate-500 max-w-md mx-auto">
-                            Review and inspect previously ingested Excel files for JeenWeb and SatvaWeb reseller accounts.
-                        </p>
-                        <button
-                            onClick={() => navigate("/user/upload")}
-                            className="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer inline-flex items-center gap-2"
-                        >
-                            Open Upload Section
-                            <i className="fa-solid fa-arrow-right text-xs"></i>
-                        </button>
-                    </div>
-                )}
-
-                {/* TAB 4: SYSTEM AUDIT LOGS SHORTCUT */}
-                {activeTab === "audit" && (
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center space-y-4">
-                        <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl border border-indigo-100 flex items-center justify-center mx-auto text-xl font-bold">
-                            <i className="fa-solid fa-list-check"></i>
-                        </div>
-                        <h3 className="text-xl font-extrabold text-slate-900">System Audit Logs</h3>
-                        <p className="text-xs text-slate-500 max-w-md mx-auto">
-                            Inspect system security logs, tracking user actions, configuration updates, and login attempts.
-                        </p>
-                        <button
-                            onClick={() => navigate("/admin/report")}
-                            className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer inline-flex items-center gap-2"
-                        >
-                            Open Activity Report
-                            <i className="fa-solid fa-arrow-right text-xs"></i>
-                        </button>
-                    </div>
-                )}
-
-                {/* TAB 5: GENERAL CONFIG */}
-                {activeTab === "general" && (
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
-                        <div>
-                            <h3 className="text-lg font-extrabold text-slate-900">General Platform Configuration</h3>
-                            <p className="text-xs text-slate-500 mt-0.5">System preferences and environment metadata</p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold">
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                                <span className="text-slate-500 block mb-1">Database Engine</span>
-                                <span className="text-slate-800 text-sm font-extrabold">MySQL 8.0 (localhost:3306)</span>
-                            </div>
-                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-                                <span className="text-slate-500 block mb-1">Reseller Multi-Company Mode</span>
-                                <span className="text-emerald-700 text-sm font-extrabold">ACTIVE (JeenWeb & SatvaWeb)</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                </div>
 
             </main>
 

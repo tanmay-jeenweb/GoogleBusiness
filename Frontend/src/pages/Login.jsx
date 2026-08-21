@@ -98,9 +98,11 @@ export default function Login() {
                     {/* Logo & Heading */}
                     <div className="flex flex-col items-center mb-6">
                         <div className="flex items-center gap-2 mb-2 select-none">
-                            <span className="text-4xl font-black tracking-tighter bg-gradient-to-r from-blue-500 via-sky-500 to-teal-400 bg-clip-text text-transparent">
-                                Google Business
-                            </span>
+                            <img 
+                                src="/Untitled_design-removebg-preview.png" 
+                                alt="Billing Engine Logo" 
+                                className="h-24 sm:h-28 w-auto object-contain transition-transform duration-200 hover:scale-105 drop-shadow-[0_10px_25px_rgba(0,86,207,0.3)]" 
+                            />
                         </div>
                         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight text-center">
                             Welcome Back
