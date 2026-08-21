@@ -3,6 +3,20 @@ import { getMyPermissions } from "../api/authApi";
 
 const PermissionContext = createContext(null);
 
+const PAGE_PRIORITY_LIST = [
+    { key: "user_dashboard",        path: "/user/home" },
+    { key: "upload_section",        path: "/user/upload" },
+    { key: "transactions",          path: "/user/transactions" },
+    { key: "clients",               path: "/user/clients" },
+    { key: "accounts",              path: "/user/accounts" },
+    { key: "financial_matrix",      path: "/user/matrix" },
+    { key: "activity_reports",      path: "/user/reports/renewals" },
+    { key: "system_settings",       path: "/admin/settings" },
+    { key: "user_master",           path: "/admin/dashboard" },
+    { key: "user_type",             path: "/admin/user-types" },
+    { key: "activity_report",       path: "/admin/report" }
+];
+
 export function PermissionProvider({ children }) {
     const [permissions, setPermissions] = useState({});
     const [isAdmin, setIsAdmin] = useState(false);
@@ -19,7 +33,7 @@ export function PermissionProvider({ children }) {
             return;
         }
 
-        if (user.role === "admin") {
+        if (user.role === "admin" || user.role === "super admin") {
             setIsAdmin(true);
             setPermissions({});
             setLoading(false);
@@ -48,7 +62,6 @@ export function PermissionProvider({ children }) {
     useEffect(() => {
         fetchPermissions();
         
-        // Listen for storage or custom events for login/logout
         const handleStorageChange = () => {
             fetchPermissions();
         };
@@ -61,20 +74,46 @@ export function PermissionProvider({ children }) {
         };
     }, []);
 
-    const hasPermission = (masterName, action) => {
-        // Admins always have all permissions
-        if (isAdmin) return true;
+    const hasPermission = (masterName, action = "read") => {
         const user = JSON.parse(localStorage.getItem("user") || "null");
-        if (user && user.role === "admin") return true;
 
-        const perm = permissions[masterName];
-        if (!perm) return false;
+        if (isAdmin || (user && (user.role === "admin" || user.role === "super admin"))) {
+            return true;
+        }
 
-        return !!perm[action];
+        if (!masterName) return true;
+
+        if (permissions && Object.prototype.hasOwnProperty.call(permissions, masterName)) {
+            const perm = permissions[masterName];
+            return perm ? !!perm[action] : false;
+        }
+
+        if (permissions && Object.keys(permissions).length > 0) {
+            return false;
+        }
+
+        return masterName === "user_dashboard";
+    };
+
+    // Smart helper to get the first page the user is permitted to access
+    const getFirstPermittedPage = () => {
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        if (isAdmin || (user && (user.role === "admin" || user.role === "super admin"))) {
+            return "/user/home";
+        }
+
+        // Search through page candidates for the first allowed page
+        for (const item of PAGE_PRIORITY_LIST) {
+            if (hasPermission(item.key, "read")) {
+                return item.path;
+            }
+        }
+
+        return "/user/home";
     };
 
     return (
-        <PermissionContext.Provider value={{ permissions, isAdmin, loading, hasPermission, refreshPermissions: fetchPermissions }}>
+        <PermissionContext.Provider value={{ permissions, isAdmin, loading, hasPermission, getFirstPermittedPage, refreshPermissions: fetchPermissions }}>
             {children}
         </PermissionContext.Provider>
     );

@@ -2,15 +2,19 @@ const xlsx = require("xlsx");
 const {
     insertAccountActivity,
     insertMasterAccount,
+    removeExistingDuplicates,
     logUpload,
     getUploadLogs,
     getAccountActivities,
     getMasterAccounts,
+    getJoinedTransactions,
     deleteUploadLog,
-    truncateAccountActivities,
-    truncateMasterAccounts,
+    truncateCompanyAccountActivities,
+    truncateCompanyMasterAccounts,
     truncateAllUploads
 } = require("../models/uploadModel.js");
+const { getKeywordRules } = require("../models/settingsModel.js");
+const { createAuditLog } = require("../models/auditLogModel.js");
 
 // Format file size helper
 const formatBytes = (bytes) => {
@@ -21,83 +25,279 @@ const formatBytes = (bytes) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
 };
 
-// 1. Upload Account Activities (File 1)
+// Comprehensive Date Standardizer for Excel serials, slashes (8/10/26, 08/26), and ranges (Aug 1 - 31, 2026)
+const parseExcelDate = (val) => {
+    if (!val) return "";
+    const str = String(val).trim();
+    if (!str || str === 'N/A' || str === 'null' || str === 'undefined') return "";
+
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    // 1. Check Excel serial number (e.g. 46254.00011574074)
+    const num = Number(str);
+    if (!isNaN(num) && num > 20000 && num < 100000) {
+        try {
+            const parsed = xlsx.SSF.parse_date_code(num);
+            if (parsed && parsed.y && parsed.m && parsed.d) {
+                return `${parsed.d} ${months[parsed.m - 1]} ${parsed.y}`;
+            }
+        } catch (e) {}
+    }
+
+    // 2. Date ranges like 'Aug 1 – 31, 2026' or 'August / 2026'
+    if (str.includes('–') || str.includes('-')) {
+        const rangeMatch = str.match(/([A-Za-z]+)\s+\d+.*(\d{4})/);
+        if (rangeMatch) {
+            return `${rangeMatch[1].slice(0, 3)} ${rangeMatch[2]}`;
+        }
+    }
+
+    // 3. Slash formats like '8/10/26', '08/10/2026', '08/26', '8/26', 'August / 2026'
+    if (str.includes('/')) {
+        const parts = str.split('/').map(p => p.trim());
+        if (parts.length === 3) {
+            const m = parseInt(parts[0]);
+            const d = parseInt(parts[1]);
+            let y = parseInt(parts[2]);
+            if (y < 100) y += 2000;
+            if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 2000) {
+                return `${d} ${months[m - 1]} ${y}`;
+            }
+        }
+        if (parts.length === 2) {
+            let m = parseInt(parts[0]);
+            let y = parseInt(parts[1]);
+            if (isNaN(m)) {
+                const mIdx = months.findIndex(mon => parts[0].toLowerCase().startsWith(mon.toLowerCase()));
+                if (mIdx !== -1) m = mIdx + 1;
+            }
+            if (y < 100) y += 2000;
+            if (m >= 1 && m <= 12 && y >= 2000) {
+                return `${months[m - 1]} ${y}`;
+            }
+        }
+    }
+
+    // 4. ISO or standard JS Date parseable strings
+    const dObj = new Date(str);
+    if (!isNaN(dObj.getTime()) && dObj.getFullYear() >= 2000) {
+        return `${dObj.getDate()} ${months[dObj.getMonth()]} ${dObj.getFullYear()}`;
+    }
+
+    return str;
+};
+
+// Smart row value extractor with strict boundary matching
+const getRowVal = (row, keyPatterns) => {
+    if (!row || typeof row !== 'object') return "";
+    const keys = Object.keys(row);
+    for (const pattern of keyPatterns) {
+        const foundKey = keys.find(k => {
+            const normalized = k.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+            const target = pattern.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+            if (target.length <= 2) return normalized === target;
+            return normalized === target || (target.length >= 4 && normalized.includes(target));
+        });
+        if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== "") {
+            return String(row[foundKey]).trim();
+        }
+    }
+    return "";
+};
+
+// Extract Commitment / Activity Type from Description using dynamic Keyword Rules from settings
+const extractCommitmentType = (description = "", rules = []) => {
+    if (rules && rules.length > 0) {
+        const lowerDesc = description.toLowerCase().trim();
+        // Sort rules so higher priority and longer match strings are evaluated first
+        const sortedRules = [...rules].sort((a, b) => {
+            const pDiff = (b.priority || 0) - (a.priority || 0);
+            if (pDiff !== 0) return pDiff;
+            return (b.keyword_match || "").length - (a.keyword_match || "").length;
+        });
+
+        for (const r of sortedRules) {
+            if ((r.status || 'ACTIVE').toUpperCase() === 'ACTIVE' && r.keyword_match) {
+                const lowerKeyword = r.keyword_match.toLowerCase().trim();
+                if (lowerKeyword && lowerDesc.includes(lowerKeyword)) {
+                    return r.activity_classification;
+                }
+            }
+        }
+    }
+    const lower = description.toLowerCase();
+    if (lower.includes("new commitment")) return "new commitment";
+    if (lower.includes("commitment increase") || lower.includes("increase")) return "commitment increase";
+    if (lower.includes("commitment renewal") || lower.includes("renewal")) return "commitment renewal";
+    if (lower.includes("commitment for") || lower.includes("commitment")) return "commitment";
+    if (lower.includes("usage") || lower.includes("flex")) return "usage";
+    return "other";
+};
+
+// Extract Seats count from Description or text
+const extractSeatsFromText = (text = "") => {
+    const match = text.match(/(\d+)\s*seats?/i);
+    if (match) return parseInt(match[1]);
+    return 1;
+};
+
+// Extract SKU Plan from Description
+const extractSkuPlanFromText = (text = "") => {
+    if (text.includes(":")) {
+        const parts = text.split(":");
+        if (parts[0] && parts[0].trim().length > 3) return parts[0].trim();
+    }
+    return "Google Workspace Business Starter";
+};
+
+// Extract Domain Name cleanly from description or text
+const extractDomainFromText = (text = "") => {
+    const match = text.match(/Domain Name:\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i) ||
+                  text.match(/Domain:\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i) ||
+                  text.match(/([a-zA-Z0-9-]+\.(?:com|org|net|in|co|io|ai|biz|info|us|gov|edu))/i);
+    if (match) return match[1].trim();
+    return "";
+};
+
+// Extract Customer ID cleanly from text
+const extractCustomerIdFromText = (text = "") => {
+    const match = text.match(/Customer ID:\s*([C0-9a-zA-Z]+)/i) ||
+                  text.match(/Cust ID:\s*([C0-9a-zA-Z]+)/i);
+    if (match) return match[1].trim();
+    return "";
+};
+
+// Extract Order Number cleanly from text
+const extractOrderNumberFromText = (text = "") => {
+    const match = text.match(/Order Number:\s*([0-9a-zA-Z-]+)/i) ||
+                  text.match(/Order #:\s*([0-9a-zA-Z-]+)/i);
+    if (match) return match[1].trim();
+    return "";
+};
+
+// Helper to derive activity category from description
+const deriveActivityCategory = (description = "") => {
+    const desc = description.toLowerCase();
+    if (desc.includes("increase")) return "Commitment Increase";
+    if (desc.includes("renewal")) return "Commitment Renewal";
+    if (desc.includes("upgrade")) return "Plan Upgrade";
+    if (desc.includes("downgrade")) return "Plan Downgrade";
+    if (desc.includes("seat")) return "Seat Modification";
+    return "Subscription Activity";
+};
+
+// Helper to format billing month from date
+const formatBillingMonth = (dateStr = "") => {
+    const cleanDate = parseExcelDate(dateStr);
+    if (!cleanDate) return "August 2026";
+    const d = new Date(cleanDate);
+    if (!isNaN(d.getTime())) {
+        return d.toLocaleString("default", { month: "long", year: "numeric" });
+    }
+    return cleanDate;
+};
+
+// 1. Upload Account Activities (File 1) for specific company
 const uploadAccountActivities = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: "No file uploaded" });
         }
 
+        const company = req.params.company || req.query.company || "jeenweb";
         const fileName = req.file.originalname;
         const fileSize = formatBytes(req.file.size);
         const ext = fileName.split(".").pop().toLowerCase();
 
-        let recordCount = 0;
+        let insertedCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
+
+        let keywordRules = [];
+        try {
+            keywordRules = await getKeywordRules();
+        } catch (e) {}
 
         if (["xlsx", "xls", "csv"].includes(ext)) {
-            const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+            const workbook = xlsx.read(req.file.buffer, { type: "buffer", cellDates: true });
             const sheetName = workbook.SheetNames[0];
-            const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+            const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false });
 
             for (const row of rows) {
                 const rowStr = JSON.stringify(row);
 
-                let transactionDate = row["Transaction Date"] || row["Date"] || row["date"] || "";
-                let description = row["Description"] || row["description"] || "";
-                let orderNumber = row["Order Number"] || row["order_number"] || "";
-                let domainName = row["Domain Name"] || row["domain_name"] || row["Domain"] || "";
-                let customerId = row["Customer ID"] || row["customer_id"] || "";
-                let amount = row["Amount"] || row["amount"] || 0;
+                let transactionDate = parseExcelDate(getRowVal(row, ["transactiondate", "date", "createdat"]));
+                let description = getRowVal(row, ["description", "activity", "details", "item"]);
+                let orderNumber = getRowVal(row, ["ordernumber", "order", "orderid"]);
+                let domainName = getRowVal(row, ["domainname", "domain", "primarydomain", "customerdomain"]);
+                let customerId = getRowVal(row, ["customerid", "customer", "accountid", "clientid"]);
+                let amountStr = getRowVal(row, ["amount", "cost", "total", "price", "inr", "value"]);
 
-                if (!orderNumber) {
-                    const match = rowStr.match(/Order Number:\s*([^\s,]+)/i);
-                    if (match) orderNumber = match[1];
+                const fullText = (description + " " + rowStr).trim();
+                const lowerText = fullText.toLowerCase();
+                if (lowerText.includes("starting balance") || lowerText.includes("ending balance")) {
+                    continue; // Skip statement summary balance rows from transaction ingestion
                 }
-                if (!domainName) {
-                    const match = rowStr.match(/Domain Name:\s*([^\s,]+)/i);
-                    if (match) domainName = match[1];
-                }
-                if (!customerId) {
-                    const match = rowStr.match(/Customer ID:\s*([^\s,]+)/i);
-                    if (match) customerId = match[1];
-                }
+                if (!domainName) domainName = extractDomainFromText(fullText);
+                if (!customerId) customerId = extractCustomerIdFromText(fullText);
+                if (!orderNumber) orderNumber = extractOrderNumberFromText(fullText);
+
+                let commitmentType = extractCommitmentType(fullText, keywordRules);
+                let seats = extractSeatsFromText(fullText);
+                let skuPlan = extractSkuPlanFromText(description || fullText);
+
                 if (!transactionDate) {
                     const match = rowStr.match(/([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})/);
                     if (match) transactionDate = match[1];
                 }
 
-                await insertAccountActivity({
-                    transaction_date: transactionDate || "Aug 2, 2026",
+                let amount = amountStr ? parseFloat(amountStr.replace(/,/g, "")) : 0.00;
+
+                const result = await insertAccountActivity(company, {
+                    transaction_date: transactionDate || "N/A",
                     description: description || rowStr,
-                    order_number: orderNumber || "7343380674-07",
-                    domain_name: domainName || "ckindia.com",
-                    customer_id: customerId || "C00sd22ht",
-                    amount: amount || 10488.00,
-                    file_name: fileName
+                    order_number: orderNumber || "N/A",
+                    domain_name: domainName || "N/A",
+                    customer_id: customerId || "N/A",
+                    commitment_type: commitmentType,
+                    seats: seats,
+                    sku_plan: skuPlan,
+                    amount: isNaN(amount) ? 0.00 : amount,
+                    file_name: fileName,
+                    raw_data: row
                 });
-                recordCount++;
+
+                if (result.inserted) insertedCount++;
+                else if (result.updated) updatedCount++;
+                else skippedCount++;
             }
         }
 
-        if (recordCount === 0) {
-            await insertAccountActivity({
-                transaction_date: "Aug 2, 2026",
-                description: "Google Workspace Business Starter: Commitment renewal of 4 seats",
-                order_number: "7343380674-07",
-                domain_name: "ckindia.com",
-                customer_id: "C00sd22ht",
-                amount: 10488.00,
-                file_name: fileName
-            });
-            recordCount = 1;
-        }
+        await removeExistingDuplicates();
+        await logUpload(fileName, "Account Activities", fileSize, insertedCount + updatedCount, company);
 
-        await logUpload(fileName, "Account Activities", fileSize, recordCount);
+        const compLabel = company.toLowerCase().includes("satva") ? "SatvaWeb" : "JeenWeb";
+
+        try {
+            await createAuditLog(
+                req.user?.id || null,
+                req.user?.username || req.user?.email || "Admin User",
+                req.headers['x-device-id'] || "Web Client",
+                "Upload Center",
+                "uploaded",
+                null,
+                { file_name: fileName, file_type: "Account Activities", company: compLabel, records_processed: insertedCount + updatedCount }
+            );
+        } catch (e) {}
 
         res.status(200).json({
             success: true,
-            message: `Account Activities file "${fileName}" processed successfully (${recordCount} records inserted into MySQL)`,
-            recordCount
+            message: `Account Activities for ${compLabel} processed: ${insertedCount} new inserted, ${updatedCount} modified updated, ${skippedCount} unchanged skipped`,
+            recordCount: insertedCount + updatedCount,
+            insertedCount,
+            updatedCount,
+            skippedCount,
+            company: compLabel
         });
 
     } catch (error) {
@@ -106,69 +306,95 @@ const uploadAccountActivities = async (req, res) => {
     }
 };
 
-// 2. Upload Master Account (File 2)
+// 2. Upload Master Account (File 2) for specific company
 const uploadMasterAccount = async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ success: false, message: "No file uploaded" });
         }
 
+        const company = req.params.company || req.query.company || "jeenweb";
         const fileName = req.file.originalname;
         const fileSize = formatBytes(req.file.size);
         const ext = fileName.split(".").pop().toLowerCase();
 
-        let recordCount = 0;
+        let insertedCount = 0;
+        let updatedCount = 0;
+        let skippedCount = 0;
 
         if (["xlsx", "xls", "csv"].includes(ext)) {
-            const workbook = xlsx.read(req.file.buffer, { type: "buffer" });
+            const workbook = xlsx.read(req.file.buffer, { type: "buffer", cellDates: true });
             const sheetName = workbook.SheetNames[0];
-            const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
+            const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "", raw: false });
 
             for (const row of rows) {
-                await insertMasterAccount({
-                    domain_name: row["Domain Name"] || row["domain_name"] || row["Domain"] || "ckindia.com",
-                    product: row["Product"] || row["product"] || "Google Workspace",
-                    sku_plan: row["SKU Plan"] || row["sku_plan"] || row["Plan"] || "Google Workspace Business Starter",
-                    start_date: row["Start Date"] || row["start_date"] || "August 2, 2024",
-                    status: row["Status"] || row["status"] || "Active",
-                    payment_plan: row["Payment Plan"] || row["payment_plan"] || "Annual Plan (Yearly Payment)",
-                    end_date: row["End Date"] || row["end_date"] || "August 2, 2027",
-                    total_seats: row["Total Seats"] || row["total_seats"] || 4,
-                    assigned_seats: row["Assigned Seats"] || row["assigned_seats"] || 4,
-                    subscription_id: row["Subscription ID"] || row["subscription_id"] || "SPwwWB6VuIE8zx",
-                    customer_id: row["Customer ID"] || row["customer_id"] || "C00sd22ht",
-                    order_number: row["Order Number"] || row["order_number"] || "7343380674",
-                    file_name: fileName
+                const rowStr = JSON.stringify(row);
+
+                let domainName = getRowVal(row, ["domainname", "domain", "primarydomain", "customerdomain"]);
+                let product = getRowVal(row, ["product", "service", "item"]);
+                let skuPlan = getRowVal(row, ["skuplan", "plan", "sku", "subscription"]);
+                let startDate = parseExcelDate(getRowVal(row, ["startdate", "start", "purchasedate"]));
+                let status = getRowVal(row, ["status", "state"]);
+                let paymentPlan = getRowVal(row, ["paymentplan", "payment", "planterm"]);
+                let endDate = parseExcelDate(getRowVal(row, ["enddate", "end", "expirydate"]));
+                let totalSeats = getRowVal(row, ["totalseats", "total", "seats", "licenses"]);
+                let assignedSeats = getRowVal(row, ["assignedseats", "assigned", "used"]);
+                let subscriptionId = getRowVal(row, ["subscriptionid", "subscription", "subid"]);
+                let customerId = getRowVal(row, ["customerid", "customer", "accountid"]);
+                let orderNumber = getRowVal(row, ["ordernumber", "order", "orderid"]);
+
+                if (!domainName) domainName = extractDomainFromText(rowStr);
+                if (!customerId) customerId = extractCustomerIdFromText(rowStr);
+                if (!orderNumber) orderNumber = extractOrderNumberFromText(rowStr);
+
+                const result = await insertMasterAccount(company, {
+                    domain_name: domainName || "N/A",
+                    product: product || "Google Workspace",
+                    sku_plan: skuPlan || "Google Workspace Business Starter",
+                    start_date: startDate || "N/A",
+                    status: status || "Active",
+                    payment_plan: paymentPlan || "Annual Plan",
+                    end_date: endDate || "N/A",
+                    total_seats: parseInt(totalSeats) || 1,
+                    assigned_seats: parseInt(assignedSeats) || parseInt(totalSeats) || 1,
+                    subscription_id: subscriptionId || "N/A",
+                    customer_id: customerId || "N/A",
+                    order_number: orderNumber || "N/A",
+                    file_name: fileName,
+                    raw_data: row
                 });
-                recordCount++;
+
+                if (result.inserted) insertedCount++;
+                else if (result.updated) updatedCount++;
+                else skippedCount++;
             }
         }
 
-        if (recordCount === 0) {
-            await insertMasterAccount({
-                domain_name: "ckindia.com",
-                product: "Google Workspace",
-                sku_plan: "Google Workspace Business Starter",
-                start_date: "August 2, 2024",
-                status: "Active",
-                payment_plan: "Annual Plan (Yearly Payment)",
-                end_date: "August 2, 2027",
-                total_seats: 4,
-                assigned_seats: 4,
-                subscription_id: "SPwwWB6VuIE8zx",
-                customer_id: "C00sd22ht",
-                order_number: "7343380674",
-                file_name: fileName
-            });
-            recordCount = 1;
-        }
+        await removeExistingDuplicates();
+        await logUpload(fileName, "Master Account", fileSize, insertedCount + updatedCount, company);
 
-        await logUpload(fileName, "Master Account", fileSize, recordCount);
+        const compLabel = company.toLowerCase().includes("satva") ? "SatvaWeb" : "JeenWeb";
+
+        try {
+            await createAuditLog(
+                req.user?.id || null,
+                req.user?.username || req.user?.email || "Admin User",
+                req.headers['x-device-id'] || "Web Client",
+                "Upload Center",
+                "uploaded",
+                null,
+                { file_name: fileName, file_type: "Master Account", company: compLabel, records_processed: insertedCount + updatedCount }
+            );
+        } catch (e) {}
 
         res.status(200).json({
             success: true,
-            message: `Master Account file "${fileName}" processed successfully (${recordCount} records inserted into MySQL)`,
-            recordCount
+            message: `Master Account for ${compLabel} processed: ${insertedCount} new inserted, ${updatedCount} modified updated, ${skippedCount} unchanged skipped`,
+            recordCount: insertedCount + updatedCount,
+            insertedCount,
+            updatedCount,
+            skippedCount,
+            company: compLabel
         });
 
     } catch (error) {
@@ -177,12 +403,25 @@ const uploadMasterAccount = async (req, res) => {
     }
 };
 
-// 3. Get All Upload Logs & History Data
+// 3. Get Upload Logs & History Data per company or all
 const getHistory = async (req, res) => {
     try {
-        const logs = await getUploadLogs();
-        const accountActivities = await getAccountActivities();
-        const masterAccounts = await getMasterAccounts();
+        const company = req.query.company || req.params.company || "all";
+        await removeExistingDuplicates();
+        const logs = await getUploadLogs(company);
+        const rawAccountActivities = await getAccountActivities(company);
+        const rawMasterAccounts = await getMasterAccounts(company);
+
+        const accountActivities = rawAccountActivities.map(a => ({
+            ...a,
+            transaction_date: parseExcelDate(a.transaction_date)
+        }));
+
+        const masterAccounts = rawMasterAccounts.map(m => ({
+            ...m,
+            start_date: parseExcelDate(m.start_date),
+            end_date: parseExcelDate(m.end_date)
+        }));
 
         res.status(200).json({
             success: true,
@@ -196,7 +435,44 @@ const getHistory = async (req, res) => {
     }
 };
 
-// 4. Delete Single Record
+// 4. Get Formatted Joined Transactions with seller_company filter
+const getTransactions = async (req, res) => {
+    try {
+        const company = req.query.company || req.params.company || "all";
+        await removeExistingDuplicates();
+        const rawTransactions = await getJoinedTransactions(company);
+
+        const formatted = rawTransactions.map(t => {
+            const cleanDate = parseExcelDate(t.transaction_date) || "Aug 2, 2026";
+            return {
+                id: t.id,
+                seller_company: t.seller_company || "JeenWeb",
+                date: cleanDate,
+                billing_month: formatBillingMonth(cleanDate),
+                activity_category: t.commitment_type || deriveActivityCategory(t.description),
+                plan_type: t.sku_plan || "Google Workspace Business Starter",
+                product: t.product || "Google Workspace",
+                domain: t.domain_name || "N/A",
+                customer_id: t.customer_id || "N/A",
+                seats: t.seats || 1,
+                amount: parseFloat(t.amount) || 0.00,
+                order_number: t.order_number || "N/A",
+                description: t.description || "N/A"
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            count: formatted.length,
+            transactions: formatted
+        });
+    } catch (error) {
+        console.error("Get Transactions Error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch transactions" });
+    }
+};
+
+// 5. Delete Single Record
 const deleteRecord = async (req, res) => {
     try {
         const { id } = req.params;
@@ -208,33 +484,39 @@ const deleteRecord = async (req, res) => {
     }
 };
 
-// 5. Clear Account Activities SQL Table
+// 6. Clear Account Activities SQL Table per company
 const clearAccountActivitiesData = async (req, res) => {
     try {
-        await truncateAccountActivities();
-        res.status(200).json({ success: true, message: "All Account Activities data cleared from SQL table" });
+        const company = req.params.company || req.query.company || "jeenweb";
+        await truncateCompanyAccountActivities(company);
+        const compLabel = company.toLowerCase().includes("satva") ? "SatvaWeb" : "JeenWeb";
+        res.status(200).json({ success: true, message: `All ${compLabel} Account Activities data cleared from SQL` });
     } catch (error) {
         console.error("Clear Account Activities Error:", error);
         res.status(500).json({ success: false, message: "Failed to clear Account Activities table" });
     }
 };
 
-// 6. Clear Master Account SQL Table
+// 7. Clear Master Account SQL Table per company
 const clearMasterAccountData = async (req, res) => {
     try {
-        await truncateMasterAccounts();
-        res.status(200).json({ success: true, message: "All Master Account data cleared from SQL table" });
+        const company = req.params.company || req.query.company || "jeenweb";
+        await truncateCompanyMasterAccounts(company);
+        const compLabel = company.toLowerCase().includes("satva") ? "SatvaWeb" : "JeenWeb";
+        res.status(200).json({ success: true, message: `All ${compLabel} Master Account data cleared from SQL` });
     } catch (error) {
         console.error("Clear Master Account Error:", error);
         res.status(500).json({ success: false, message: "Failed to clear Master Account table" });
     }
 };
 
-// 7. Clear All Upload SQL Tables
+// 8. Clear All Upload SQL Tables per company or total
 const clearAllData = async (req, res) => {
     try {
-        await truncateAllUploads();
-        res.status(200).json({ success: true, message: "All upload data cleared from MySQL database" });
+        const company = req.params.company || req.query.company || "all";
+        await truncateAllUploads(company);
+        const compLabel = company === "all" ? "All Companies" : (company.toLowerCase().includes("satva") ? "SatvaWeb" : "JeenWeb");
+        res.status(200).json({ success: true, message: `All ${compLabel} upload data cleared from MySQL` });
     } catch (error) {
         console.error("Clear All Data Error:", error);
         res.status(500).json({ success: false, message: "Failed to clear SQL database" });
@@ -245,6 +527,7 @@ module.exports = {
     uploadAccountActivities,
     uploadMasterAccount,
     getHistory,
+    getTransactions,
     deleteRecord,
     clearAccountActivitiesData,
     clearMasterAccountData,

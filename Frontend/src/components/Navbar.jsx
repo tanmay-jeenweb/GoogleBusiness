@@ -7,7 +7,10 @@ export default function Navbar() {
     const navigate = useNavigate();
     const location = useLocation();
     const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const [isOpen, setIsOpen] = useState(false);
+    const [isManagementOpen, setIsManagementOpen] = useState(false);
+    const [isDataExplorerOpen, setIsDataExplorerOpen] = useState(false);
+    const [isReportsOpen, setIsReportsOpen] = useState(false);
+    const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
 
     const { hasPermission } = usePermission();
@@ -15,8 +18,17 @@ export default function Navbar() {
 
     useEffect(() => {
         const handleOutsideClick = (e) => {
-            if (isOpen && !e.target.closest("#masters-dropdown")) {
-                setIsOpen(false);
+            if (isManagementOpen && !e.target.closest("#management-dropdown")) {
+                setIsManagementOpen(false);
+            }
+            if (isDataExplorerOpen && !e.target.closest("#data-explorer-dropdown")) {
+                setIsDataExplorerOpen(false);
+            }
+            if (isReportsOpen && !e.target.closest("#reports-dropdown")) {
+                setIsReportsOpen(false);
+            }
+            if (isAnalyticsOpen && !e.target.closest("#analytics-dropdown")) {
+                setIsAnalyticsOpen(false);
             }
             if (isProfileOpen && !e.target.closest("#profile-dropdown")) {
                 setIsProfileOpen(false);
@@ -24,10 +36,34 @@ export default function Navbar() {
         };
         document.addEventListener("click", handleOutsideClick);
         return () => document.removeEventListener("click", handleOutsideClick);
-    }, [isOpen, isProfileOpen]);
+    }, [isManagementOpen, isDataExplorerOpen, isReportsOpen, isAnalyticsOpen, isProfileOpen]);
 
-    const toggleMasters = () => {
-        setIsOpen(!isOpen);
+    const toggleManagement = () => {
+        setIsManagementOpen(!isManagementOpen);
+        if (isDataExplorerOpen) setIsDataExplorerOpen(false);
+        if (isReportsOpen) setIsReportsOpen(false);
+        if (isAnalyticsOpen) setIsAnalyticsOpen(false);
+    };
+
+    const toggleDataExplorer = () => {
+        setIsDataExplorerOpen(!isDataExplorerOpen);
+        if (isManagementOpen) setIsManagementOpen(false);
+        if (isReportsOpen) setIsReportsOpen(false);
+        if (isAnalyticsOpen) setIsAnalyticsOpen(false);
+    };
+
+    const toggleReports = () => {
+        setIsReportsOpen(!isReportsOpen);
+        if (isManagementOpen) setIsManagementOpen(false);
+        if (isDataExplorerOpen) setIsDataExplorerOpen(false);
+        if (isAnalyticsOpen) setIsAnalyticsOpen(false);
+    };
+
+    const toggleAnalytics = () => {
+        setIsAnalyticsOpen(!isAnalyticsOpen);
+        if (isManagementOpen) setIsManagementOpen(false);
+        if (isDataExplorerOpen) setIsDataExplorerOpen(false);
+        if (isReportsOpen) setIsReportsOpen(false);
     };
 
     const handleLogout = async () => {
@@ -43,14 +79,110 @@ export default function Navbar() {
         navigate("/");
     };
 
-    const allMasters = [
+    const rawDataExplorerItems = [
+        {
+            name: "Transaction Section",
+            path: "/user/transactions",
+            masterKey: "transactions",
+            icon: "fa-solid fa-receipt",
+            desc: "Inspect ingested transaction billing records"
+        },
+        {
+            name: "Clients",
+            path: "/user/clients",
+            masterKey: "clients",
+            icon: "fa-solid fa-users-rectangle",
+            desc: "Client & Subclient domain assignment directory"
+        },
+        {
+            name: "Accounts Registry",
+            path: "/user/accounts",
+            masterKey: "accounts",
+            icon: "fa-solid fa-building-user",
+            desc: "Customer accounts, active seats & lifetime billing"
+        }
+    ];
+
+    const dataExplorerItems = rawDataExplorerItems.filter(item => 
+        isAdmin || hasPermission(item.masterKey, "read")
+    );
+
+    const rawAnalyticsItems = [
+        {
+            name: "Compare Month",
+            path: "/user/analytics/compare",
+            masterKey: "analytics",
+            icon: "fa-solid fa-code-compare",
+            desc: "Evaluate invoicing growth & seat expansions"
+        },
+        {
+            name: "Client Performance",
+            path: "/user/analytics/client-performance",
+            masterKey: "analytics",
+            icon: "fa-solid fa-chart-pie",
+            desc: "Analyze active seats & client revenue performance"
+        }
+    ];
+
+    const analyticsItems = rawAnalyticsItems.filter(item => 
+        isAdmin || hasPermission(item.masterKey, "read")
+    );
+
+    const rawActivityReportItems = [
+        {
+            name: "Commitment Renewals",
+            path: "/user/reports/renewals",
+            masterKey: "activity_reports",
+            icon: "fa-solid fa-rotate",
+            desc: "Contract renewals & seat commitments"
+        },
+        {
+            name: "Commitment Increases",
+            path: "/user/reports/increases",
+            masterKey: "activity_reports",
+            icon: "fa-solid fa-arrow-trend-up",
+            desc: "Seat expansion values & contract upgrades"
+        },
+        {
+            name: "New Commitments",
+            path: "/user/reports/new-commitments",
+            masterKey: "activity_reports",
+            icon: "fa-solid fa-circle-plus",
+            desc: "Newly initiated commitments & subscriptions"
+        },
+        {
+            name: "Commitments",
+            path: "/user/reports/commitments",
+            masterKey: "activity_reports",
+            icon: "fa-solid fa-file-contract",
+            desc: "Active baseline commitments & allocations"
+        },
+        {
+            name: "Usage-Based Billing",
+            path: "/user/reports/usage",
+            masterKey: "activity_reports",
+            icon: "fa-solid fa-bolt",
+            desc: "Flexible pay-as-you-go consumption"
+        }
+    ];
+
+    const activityReportItems = rawActivityReportItems.filter(item => 
+        isAdmin || hasPermission(item.masterKey, "read")
+    );
+
+    const rawManagementItems = [
+        {
+            name: "System Settings",
+            path: "/admin/settings",
+            masterKey: "system_settings",
+            icon: "fa-solid fa-sliders",
+            desc: "Configure activity rules & system preferences"
+        },
         {
             name: "User Master",
             path: "/admin/dashboard",
-            masterKeys: ["user_master", "device_approval"],
+            masterKey: "user_master",
             icon: "fa-solid fa-users-gear",
-            color: "bg-emerald-50 text-emerald-600 border border-emerald-100/50",
-            activeColor: "bg-emerald-100 text-emerald-700",
             desc: "Manage user profiles & account statuses"
         },
         {
@@ -58,18 +190,30 @@ export default function Navbar() {
             path: "/admin/user-types",
             masterKey: "user_type",
             icon: "fa-solid fa-user-shield",
-            color: "bg-violet-50 text-violet-600 border border-violet-100/50",
-            activeColor: "bg-violet-100 text-violet-700",
             desc: "Configure access roles & permissions"
+        },
+        {
+            name: "System Audit Logs",
+            path: "/admin/report",
+            masterKey: "activity_report",
+            icon: "fa-solid fa-list-check",
+            desc: "Inspect system audit logs & security history"
         }
     ];
 
-    const availableMasters = allMasters.filter(m => {
-        if (m.adminOnly) return isAdmin;
-        if (m.masterKey) return hasPermission(m.masterKey, "read");
-        if (m.masterKeys) return m.masterKeys.some(key => hasPermission(key, "read"));
-        return true;
+    const availableManagement = rawManagementItems.filter(m => {
+        if (isAdmin) return true;
+        return hasPermission(m.masterKey, "read");
     });
+
+    const isDashboardAllowed = isAdmin || hasPermission("user_dashboard", "read");
+    const isUploadAllowed = isAdmin || hasPermission("upload_section", "read");
+    const isMatrixAllowed = isAdmin || hasPermission("financial_matrix", "read");
+
+    const isDataExplorerActive = dataExplorerItems.some(item => location.pathname === item.path);
+    const isAnalyticsActive = analyticsItems.some(item => location.pathname === item.path);
+    const isReportsActive = activityReportItems.some(item => location.pathname.includes(item.path.replace("/user", "")));
+    const isManagementActive = availableManagement.some(item => location.pathname === item.path);
 
     return (
         <nav className="bg-white shadow-sm border-b border-slate-200 flex flex-col relative z-50">
@@ -154,75 +298,272 @@ export default function Navbar() {
 
             {/* Second Row: Navigation */}
             {user.role && (
-                <div className="bg-[#0056cf] border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-0 flex flex-wrap items-center gap-4">
-                    <div className="flex items-center relative z-30" id="custom-nav-dropdown">
+                <div className="bg-[#0056cf] border-t border-slate-200 px-4 sm:px-6 lg:px-8 py-0 flex items-center gap-2">
+                    <div className="flex items-center flex-wrap relative z-30" id="custom-nav-dropdown">
+                        
                         {/* User Dashboard Tab */}
-                        <div className="relative">
-                            <button
-                                onClick={() => {
-                                    navigate("/user/home");
-                                }}
-                                className={`flex items-center justify-between w-40 px-4 py-2.5 text-sm border-r border-l border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
-                                    location.pathname === "/user/home" ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
-                                }`}
-                            >
-                                <span className="flex items-center gap-2.5 truncate mx-auto">
-                                    <span className="font-semibold text-white truncate">User Dashboard</span>
-                                </span>
-                            </button>
-                        </div>
-
-                        {/* Masters Dropdown */}
-                        {availableMasters.length > 0 && (
-                            <div className="relative" id="masters-dropdown">
+                        {isDashboardAllowed && (
+                            <div className="relative">
                                 <button
-                                    onClick={toggleMasters}
-                                    className={`flex items-center justify-between w-40 px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
-                                        isOpen ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    onClick={() => {
+                                        navigate("/user/home");
+                                    }}
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-l border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        location.pathname === "/user/home" ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
                                     }`}
                                 >
-                                    <span className="flex items-center gap-2.5 truncate mx-auto">
-                                        <span className="font-semibold text-white truncate">Masters</span>
+                                    <span className="font-semibold text-white truncate">User Dashboard</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Upload Section Tab - Clean Text without icons */}
+                        {isUploadAllowed && (
+                            <div className="relative">
+                                <button
+                                    onClick={() => {
+                                        navigate("/user/upload");
+                                    }}
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        location.pathname === "/user/upload" ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    }`}
+                                >
+                                    <span className="font-semibold text-white truncate">Upload Section</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Data & Explorer Dropdown */}
+                        {dataExplorerItems.length > 0 && (
+                            <div className="relative" id="data-explorer-dropdown">
+                                <button
+                                    onClick={toggleDataExplorer}
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        isDataExplorerOpen || isDataExplorerActive ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2 truncate">
+                                        <span className="font-semibold text-white truncate">Data & Explorer</span>
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             strokeWidth={2.5}
                                             stroke="currentColor"
-                                            className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${isOpen ? "rotate-180 text-white" : ""}`}
+                                            className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${isDataExplorerOpen ? "rotate-180 text-white" : ""}`}
                                         >
                                             <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                                         </svg>
                                     </span>
                                 </button>
 
-                                {isOpen && (
-                                    <div className="absolute left-0 top-full mt-1.5 w-140 bg-white border border-slate-200 rounded-2xl shadow-xl p-3.5 z-50 origin-top animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="grid grid-cols-2 gap-1.5">
-                                            {availableMasters.map((m, idx) => {
+                                {isDataExplorerOpen && (
+                                    <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 origin-top animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex flex-col gap-1">
+                                            {dataExplorerItems.map((item, idx) => {
+                                                const isActive = location.pathname === item.path;
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            navigate(item.path);
+                                                            setIsDataExplorerOpen(false);
+                                                        }}
+                                                        className={`relative group flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all cursor-pointer text-left border border-transparent ${isActive
+                                                            ? "bg-indigo-50/70 text-indigo-700 font-semibold border-indigo-100/50"
+                                                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-100"
+                                                        }`}
+                                                    >
+                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all shadow-sm shrink-0 ${isActive ? "bg-indigo-100/80 text-indigo-700" : "bg-sky-50 text-sky-600 group-hover:scale-105"
+                                                        }`}>
+                                                            <i className={`${item.icon || "fa-solid fa-folder"} text-sm`}></i>
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-semibold leading-snug py-0.5 transition-colors truncate ${isActive ? "text-indigo-900 font-bold" : "text-slate-800 group-hover:text-slate-950"
+                                                            }`}>
+                                                                {item.name}
+                                                            </p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Analytics Dropdown */}
+                        {analyticsItems.length > 0 && (
+                            <div className="relative" id="analytics-dropdown">
+                                <button
+                                    onClick={toggleAnalytics}
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        isAnalyticsOpen || isAnalyticsActive ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2 truncate">
+                                        <span className="font-semibold text-white truncate">Analytics</span>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth={2.5}
+                                            stroke="currentColor"
+                                            className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${isAnalyticsOpen ? "rotate-180 text-white" : ""}`}
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </span>
+                                </button>
+
+                                {isAnalyticsOpen && (
+                                    <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 origin-top animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex flex-col gap-1">
+                                            {analyticsItems.map((item, idx) => {
+                                                const isActive = location.pathname === item.path;
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            navigate(item.path);
+                                                            setIsAnalyticsOpen(false);
+                                                        }}
+                                                        className={`relative group flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all cursor-pointer text-left border border-transparent ${isActive
+                                                            ? "bg-indigo-50/70 text-indigo-700 font-semibold border-indigo-100/50"
+                                                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-100"
+                                                        }`}
+                                                    >
+                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all shadow-sm shrink-0 ${isActive ? "bg-indigo-100/80 text-indigo-700" : "bg-sky-50 text-sky-600 group-hover:scale-105"
+                                                        }`}>
+                                                            <i className={`${item.icon || "fa-solid fa-chart-line"} text-sm`}></i>
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-semibold leading-snug py-0.5 transition-colors truncate ${isActive ? "text-indigo-900 font-bold" : "text-slate-800 group-hover:text-slate-950"
+                                                            }`}>
+                                                                {item.name}
+                                                            </p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Activity Reports Dropdown */}
+                        {activityReportItems.length > 0 && (
+                            <div className="relative" id="reports-dropdown">
+                                <button
+                                    onClick={toggleReports}
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        isReportsOpen || isReportsActive ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2 truncate">
+                                        <span className="font-semibold text-white truncate">Activity Reports</span>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth={2.5}
+                                            stroke="currentColor"
+                                            className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${isReportsOpen ? "rotate-180 text-white" : ""}`}
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </span>
+                                </button>
+
+                                {isReportsOpen && (
+                                    <div className="absolute left-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 origin-top animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex flex-col gap-1">
+                                            {activityReportItems.map((item, idx) => {
+                                                const isActive = location.pathname.includes(item.path.replace("/user", ""));
+                                                return (
+                                                    <button
+                                                        key={idx}
+                                                        onClick={() => {
+                                                            navigate(item.path);
+                                                            setIsReportsOpen(false);
+                                                        }}
+                                                        className={`relative group flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all cursor-pointer text-left border border-transparent ${isActive
+                                                            ? "bg-indigo-50/70 text-indigo-700 font-semibold border-indigo-100/50"
+                                                            : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-100"
+                                                        }`}
+                                                    >
+                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all shadow-sm shrink-0 ${isActive ? "bg-indigo-100/80 text-indigo-700" : "bg-sky-50 text-sky-600 group-hover:scale-105"
+                                                        }`}>
+                                                            <i className={`${item.icon || "fa-solid fa-layer-group"} text-sm`}></i>
+                                                        </div>
+
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-semibold leading-snug py-0.5 transition-colors truncate ${isActive ? "text-indigo-900 font-bold" : "text-slate-800 group-hover:text-slate-950"
+                                                            }`}>
+                                                                {item.name}
+                                                            </p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Management Dropdown */}
+                        {availableManagement.length > 0 && (
+                            <div className="relative" id="management-dropdown">
+                                <button
+                                    onClick={toggleManagement}
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        isManagementOpen || isManagementActive ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    }`}
+                                >
+                                    <span className="flex items-center gap-2 truncate">
+                                        <span className="font-semibold text-white truncate">Management</span>
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            strokeWidth={2.5}
+                                            stroke="currentColor"
+                                            className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${isManagementOpen ? "rotate-180 text-white" : ""}`}
+                                        >
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                                        </svg>
+                                    </span>
+                                </button>
+
+                                {isManagementOpen && (
+                                    <div className="absolute right-0 top-full mt-1.5 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 origin-top-right animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <div className="flex flex-col gap-1">
+                                            {availableManagement.map((m, idx) => {
                                                 const isActive = location.pathname === m.path;
                                                 return (
                                                     <button
                                                         key={idx}
                                                         onClick={() => {
                                                             navigate(m.path);
-                                                            setIsOpen(false);
+                                                            setIsManagementOpen(false);
                                                         }}
                                                         className={`relative group flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all cursor-pointer text-left border border-transparent ${isActive
                                                             ? "bg-indigo-50/70 text-indigo-700 font-semibold border-indigo-100/50"
                                                             : "text-slate-600 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-100"
                                                             }`}
                                                     >
-                                                        <span className={`absolute left-0 top-2 bottom-2 w-1 rounded-r-md transition-all duration-200 ${isActive ? "bg-indigo-600 scale-y-100" : "bg-transparent scale-y-0 group-hover:scale-y-50 group-hover:bg-slate-300"
-                                                            }`} />
-
-                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all shadow-sm shrink-0 ${isActive ? "bg-indigo-100/80 text-indigo-700" : "bg-slate-100/80 text-slate-500 group-hover:scale-105"
+                                                        <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all shadow-sm shrink-0 ${isActive ? "bg-indigo-100/80 text-indigo-700" : "bg-sky-50 text-sky-600 group-hover:scale-105"
                                                             }`}>
-                                                            <i className={`${m.icon || "fa-solid fa-folder"} text-xs`}></i>
+                                                            <i className={`${m.icon || "fa-solid fa-folder"} text-sm`}></i>
                                                         </div>
 
-                                                        <div className="flex-1">
-                                                            <p className={`text-sm font-semibold leading-snug py-0.5 transition-colors whitespace-normal break-words ${isActive ? "text-indigo-900 font-bold" : "text-slate-800 group-hover:text-slate-950"
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-semibold leading-snug py-0.5 transition-colors truncate ${isActive ? "text-indigo-900 font-bold" : "text-slate-800 group-hover:text-slate-950"
                                                                 }`}>
                                                                 {m.name}
                                                             </p>
@@ -236,40 +577,21 @@ export default function Navbar() {
                             </div>
                         )}
 
-                        {/* Activity Report Tab */}
-                        {(isAdmin || hasPermission("activity_report", "read")) && (
+                        {/* Financial Matrix Tab - Clean Text without icons */}
+                        {isMatrixAllowed && (
                             <div className="relative">
                                 <button
                                     onClick={() => {
-                                        navigate("/admin/report");
+                                        navigate("/user/matrix");
                                     }}
-                                    className={`flex items-center justify-between w-40 px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
-                                        location.pathname === "/admin/report" ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
+                                    className={`flex items-center justify-center px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
+                                        location.pathname === "/user/matrix" ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
                                     }`}
                                 >
-                                    <span className="flex items-center gap-2.5 truncate mx-auto">
-                                        <span className="font-semibold text-white truncate">Activity Report</span>
-                                    </span>
+                                    <span className="font-semibold text-white truncate">Financial Matrix</span>
                                 </button>
                             </div>
                         )}
-
-                        {/* Upload Section Tab - Dedicated Full Page */}
-                        <div className="relative">
-                            <button
-                                onClick={() => {
-                                    navigate("/user/upload");
-                                }}
-                                className={`flex items-center justify-between w-44 px-4 py-2.5 text-sm border-r border-white/10 rounded-none focus:outline-none transition-all duration-200 font-semibold text-white cursor-pointer ${
-                                    location.pathname === "/user/upload" ? "bg-white/15" : "bg-[#0056cf] hover:bg-white/5"
-                                }`}
-                            >
-                                <span className="flex items-center gap-2 truncate mx-auto">
-                                    <i className="fa-solid fa-cloud-arrow-up text-sky-200"></i>
-                                    <span className="font-semibold text-white truncate">Upload Section</span>
-                                </span>
-                            </button>
-                        </div>
                     </div>
                 </div>
             )}

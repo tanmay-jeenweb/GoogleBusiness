@@ -12,6 +12,10 @@ const authRoutes = require("./routes/authRoutes.js");
 const adminRoutes = require("./routes/adminRoutes.js");
 const userTypeMasterRoutes = require("./routes/userTypeMasterRoutes.js");
 const uploadRoutes = require("./routes/uploadRoutes.js");
+const clientRoutes = require("./routes/clientRoutes.js");
+const accountRoutes = require("./routes/accountRoutes.js");
+const dashboardRoutes = require("./routes/dashboardRoutes.js");
+const settingsRoutes = require("./routes/settingsRoutes.js");
 
 // Model Initializations
 const { initUserModel } = require("./models/userModel.js");
@@ -19,7 +23,8 @@ const { createUserTypesTable, createUserTypePermissionsTable } = require("./mode
 const { createAuditLogsTable } = require("./models/auditLogModel.js");
 const { createUserDevicesTable } = require("./models/deviceModel.js");
 const { initUploadTables } = require("./models/uploadModel.js");
-
+const { initClientTables } = require("./models/clientModel.js");
+const { initSettingsTables } = require("./models/settingsModel.js");
 
 const app = express();
 
@@ -60,7 +65,10 @@ app.use(["/api/auth", "/auth"], authRoutes);
 app.use(["/api/admin", "/admin"], adminRoutes);
 app.use(["/api/usertypes", "/usertypes"], userTypeMasterRoutes);
 app.use(["/api/upload", "/upload"], uploadRoutes);
-
+app.use(["/api/clients", "/clients"], clientRoutes);
+app.use(["/api/accounts", "/accounts"], accountRoutes);
+app.use(["/api/dashboard", "/dashboard"], dashboardRoutes);
+app.use(["/api/settings", "/settings"], settingsRoutes);
 
 // Global 404 handler
 app.use((req, res) => {
@@ -78,13 +86,14 @@ const startServer = async () => {
         await connectDB();
 
         console.log("Initializing database tables...");
-        // Initialize tables in correct dependency order
         await initUserModel();
         await createUserTypesTable();
         await createUserTypePermissionsTable();
         await createAuditLogsTable();
         await createUserDevicesTable();
         await initUploadTables();
+        await initClientTables();
+        await initSettingsTables();
 
         console.log("All database tables are initialized and ready.");
 

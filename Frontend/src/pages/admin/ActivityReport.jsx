@@ -4,14 +4,13 @@ import DataTable from "../../components/DataTable";
 import { fetchActivityLogs } from "../../api/authApi";
 import toast from "react-hot-toast";
 
-// ─── Modal to view detailed change data ──────────────────────────────────────────
+// ─── Modal to view detailed change / payload data ──────────────────────────────────
 function DetailModal({ isOpen, row, onClose }) {
   if (!isOpen || !row) return null;
 
   const beforeObj = row.before_data || {};
   const afterObj = row.after_data || {};
 
-  // Get all unique keys and sort them alphabetically, excluding device_id
   const allKeys = Array.from(new Set([...Object.keys(beforeObj), ...Object.keys(afterObj)]))
     .filter(key => key !== 'device_id')
     .sort();
@@ -48,7 +47,7 @@ function DetailModal({ isOpen, row, onClose }) {
           <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#fff" }}>Activity Log Detail</h2>
             <p style={{ margin: "4px 0 0", fontSize: 13, color: "#d9e2ec" }}>
-              {row.master_name} — {row.change_type.toUpperCase()} by {row.username}
+              {row.master_name} — {(row.change_type || 'LOG').toUpperCase()} by {row.username || 'System'}
             </p>
           </div>
           <button onClick={onClose} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
@@ -69,13 +68,15 @@ function DetailModal({ isOpen, row, onClose }) {
             <div>
               <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Action Type</span>
               <p style={{ margin: "2px 0 0" }}>
-                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${
-                  row.change_type === 'created' || row.change_type === 'approved' ? 'bg-green-100 text-green-800' :
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                  row.change_type === 'created' || row.change_type === 'approved' ? 'bg-emerald-100 text-emerald-800' :
+                  row.change_type === 'uploaded' ? 'bg-purple-100 text-purple-800' :
+                  row.change_type === 'exported' ? 'bg-blue-100 text-blue-800' :
                   row.change_type === 'updated' ? 'bg-amber-100 text-amber-800' :
                   row.change_type === 'deleted' || row.change_type === 'rejected' ? 'bg-rose-100 text-rose-800' :
                   'bg-slate-100 text-slate-800'
                 }`}>
-                  {row.change_type.toUpperCase()}
+                  {(row.change_type || 'LOG').toUpperCase()}
                 </span>
               </p>
             </div>
@@ -84,13 +85,6 @@ function DetailModal({ isOpen, row, onClose }) {
               <p style={{ margin: "2px 0 0", fontSize: 14, color: "#1e293b" }}>{new Date(row.created_at).toLocaleString()}</p>
             </div>
           </div>
-
-          {afterObj.close_reason && (
-            <div style={{ marginBottom: 20, background: "#fef2f2", border: "1px solid #fee2e2", padding: "14px 18px", borderRadius: 12, color: "#991b1b" }}>
-              <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", display: "block", color: "#b91c1c" }}>Inquiry Close Reason</span>
-              <p style={{ margin: "4px 0 0", fontSize: 14, fontWeight: 600 }}>{afterObj.close_reason}</p>
-            </div>
-          )}
 
           {/* Table View */}
           <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", overflow: "hidden" }}>
@@ -153,14 +147,14 @@ export default function ActivityReport() {
   const [loading, setLoading] = useState(true);
   const [selectedRow, setSelectedRow] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("all");
 
   const fetchLogs = async () => {
     setLoading(true);
     try {
       const res = await fetchActivityLogs();
       if (res.data?.success) {
-        const rawLogs = res.data.logs || [];
-        setLogs(rawLogs);
+        setLogs(res.data.logs || []);
       } else {
         toast.error(res.data?.message || "Failed to fetch activity logs");
       }
@@ -176,30 +170,116 @@ export default function ActivityReport() {
     fetchLogs();
   }, []);
 
+  // Filter logs by selected category pill
+  const filteredLogs = useMemo(() => {
+    if (categoryFilter === "all") return logs;
+    if (categoryFilter === "clients") {
+      return logs.filter(l => (l.master_name || "").toLowerCase().includes("client") || (l.master_name || "").toLowerCase().includes("domain"));
+    }
+    if (categoryFilter === "uploads") {
+      return logs.filter(l => (l.master_name || "").toLowerCase().includes("upload") || l.change_type === "uploaded");
+    }
+    if (categoryFilter === "users") {
+      return logs.filter(l => (l.master_name || "").toLowerCase().includes("user") || (l.master_name || "").toLowerCase().includes("role"));
+    }
+    if (categoryFilter === "exports") {
+      return logs.filter(l => (l.master_name || "").toLowerCase().includes("export") || l.change_type === "exported");
+    }
+    if (categoryFilter === "settings") {
+      return logs.filter(l => (l.master_name || "").toLowerCase().includes("setting") || (l.master_name || "").toLowerCase().includes("keyword"));
+    }
+    return logs;
+  }, [logs, categoryFilter]);
+
+  // Compute KPI counts per activity category
+  const stats = useMemo(() => {
+    let clientsCount = 0;
+    let uploadsCount = 0;
+    let usersCount = 0;
+    let exportsCount = 0;
+    let settingsCount = 0;
+
+    logs.forEach(l => {
+      const master = (l.master_name || "").toLowerCase();
+      const change = (l.change_type || "").toLowerCase();
+
+      if (master.includes("client") || master.includes("domain")) clientsCount++;
+      else if (master.includes("upload") || change === "uploaded") uploadsCount++;
+      else if (master.includes("user") || master.includes("role")) usersCount++;
+      else if (master.includes("export") || change === "exported") exportsCount++;
+      else if (master.includes("setting") || master.includes("keyword")) settingsCount++;
+    });
+
+    return {
+      total: logs.length,
+      clients: clientsCount,
+      uploads: uploadsCount,
+      users: usersCount,
+      exports: exportsCount,
+      settings: settingsCount
+    };
+  }, [logs]);
+
+  const handleExportCSV = () => {
+    if (filteredLogs.length === 0) return toast.error("No activity logs to export");
+    const headers = ["Log ID", "Username", "Module / Master", "Action Type", "Device ID", "Timestamp"];
+    const csvRows = [
+      headers.join(","),
+      ...filteredLogs.map(l => [
+        l.id,
+        `"${l.username || 'System'}"`,
+        `"${l.master_name}"`,
+        `"${l.change_type}"`,
+        `"${l.device_id || 'N/A'}"`,
+        `"${new Date(l.created_at).toLocaleString()}"`
+      ].join(","))
+    ];
+
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csvRows.join("\n"));
+    const link = document.createElement("a");
+    link.setAttribute("href", csvContent);
+    link.setAttribute("download", `System_Activity_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success(`Exported ${filteredLogs.length} activity logs to CSV`);
+  };
+
   const columns = useMemo(() => [
     {
       key: "username",
       label: "Username",
-      render: (row) => <span className="font-semibold text-slate-800">{row.username || "System"}</span>
+      render: (row) => (
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-xs shrink-0">
+            {row.username ? row.username[0].toUpperCase() : "S"}
+          </div>
+          <span className="font-semibold text-slate-800">{row.username || "System"}</span>
+        </div>
+      )
     },
     {
       key: "master_name",
       label: "Module / Master",
-      render: (row) => <span className="text-slate-700">{row.master_name}</span>
+      render: (row) => <span className="font-semibold text-slate-700">{row.master_name}</span>
     },
     {
       key: "change_type",
       label: "Action",
       render: (row) => {
-        const displayAction = row.change_type;
+        const act = (row.change_type || 'LOG').toLowerCase();
+        let badgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
+
+        if (act.includes("upload")) badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+        else if (act.includes("create") || act.includes("approve")) badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+        else if (act.includes("export") || act.includes("download")) badgeStyle = "bg-blue-50 text-blue-700 border-blue-200";
+        else if (act.includes("update") || act.includes("edit")) badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+        else if (act.includes("delete") || act.includes("reject") || act.includes("close")) badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+
         return (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold tracking-wide ${
-            displayAction === 'created' || displayAction === 'approved' ? 'bg-green-50 text-green-700 border border-green-200' :
-            displayAction === 'updated' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
-            displayAction === 'deleted' || displayAction === 'rejected' || displayAction === 'closed' ? 'bg-rose-50 text-rose-700 border border-rose-200' :
-            'bg-slate-50 text-slate-700 border border-slate-200'
-          }`}>
-            {displayAction.toUpperCase()}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase border tracking-wide ${badgeStyle}`}>
+            {row.change_type ? row.change_type.toUpperCase() : 'LOG'}
           </span>
         );
       }
@@ -214,34 +294,270 @@ export default function ActivityReport() {
             setSelectedRow(row);
             setModalOpen(true);
           }}
-          className="text-xs text-indigo-600 hover:text-indigo-900 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 font-semibold px-2.5 py-1.5 rounded transition-colors cursor-pointer"
+          className="text-xs text-indigo-600 hover:text-indigo-900 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 font-semibold px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1"
         >
-          View Details
+          <i className="fa-solid fa-eye text-[11px]"></i> View Details
         </button>
       ) : <span className="text-slate-400">—</span>
     },
     {
       key: "created_at",
-      label: "Date & Time",
-      render: (row) => <span className="text-xs text-slate-500">{new Date(row.created_at).toLocaleString()}</span>
+      label: "Timestamp",
+      render: (row) => <span className="text-xs font-mono text-slate-500">{new Date(row.created_at).toLocaleString()}</span>
     }
   ], []);
 
   return (
     <div className="flex-1 flex flex-col bg-slate-50 font-sans text-slate-900 min-h-screen">
-      <Navbar title="User Activity Report" />
+      <Navbar title="Activity Report" />
 
-      <main className="flex-1 flex flex-col w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
+      <main className="flex-1 flex flex-col w-full max-w-[96rem] mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+        
+        {/* Header & Export Action */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wide">
+                System Activity Audit Trail
+              </span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+              Activity Report & System Logs
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Real-time audit log of client management, CSV/Excel uploads, report exports, and user modifications.
+            </p>
+          </div>
+
+          <button
+            onClick={handleExportCSV}
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
+          >
+            <i className="fa-solid fa-file-excel text-sm"></i>
+            Export Activity Logs CSV ({filteredLogs.length})
+          </button>
+        </div>
+
+        {/* TOP KPI OVERVIEW CARDS */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          
+          {/* Card 1: All Logs */}
+          <div 
+            onClick={() => setCategoryFilter("all")}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              categoryFilter === "all"
+                ? "bg-slate-900 text-white border-slate-900 shadow-md"
+                : "bg-white text-slate-800 border-slate-200 hover:border-slate-400"
+            }`}
+          >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
+              categoryFilter === "all" ? "text-slate-300" : "text-slate-500"
+            }`}>
+              All Events
+            </span>
+            <h4 className="text-sm font-extrabold truncate mt-0.5">Total Logs</h4>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-lg font-black font-mono">{stats.total}</span>
+              <span className="text-xs font-bold opacity-80">records</span>
+            </div>
+          </div>
+
+          {/* Card 2: Clients & Domain Mapping */}
+          <div 
+            onClick={() => setCategoryFilter("clients")}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              categoryFilter === "clients"
+                ? "bg-blue-600 text-white border-blue-700 shadow-md"
+                : "bg-white text-slate-800 border-slate-200 hover:border-blue-400"
+            }`}
+          >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
+              categoryFilter === "clients" ? "text-blue-100" : "text-blue-600"
+            }`}>
+              Clients
+            </span>
+            <h4 className="text-sm font-extrabold truncate mt-0.5">Client & Domains</h4>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-lg font-black font-mono">{stats.clients}</span>
+              <span className="text-xs font-bold opacity-80">events</span>
+            </div>
+          </div>
+
+          {/* Card 3: File Uploads */}
+          <div 
+            onClick={() => setCategoryFilter("uploads")}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              categoryFilter === "uploads"
+                ? "bg-purple-600 text-white border-purple-700 shadow-md"
+                : "bg-white text-slate-800 border-slate-200 hover:border-purple-400"
+            }`}
+          >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
+              categoryFilter === "uploads" ? "text-purple-100" : "text-purple-600"
+            }`}>
+              File Ingestion
+            </span>
+            <h4 className="text-sm font-extrabold truncate mt-0.5">CSV/Excel Uploads</h4>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-lg font-black font-mono">{stats.uploads}</span>
+              <span className="text-xs font-bold opacity-80">uploads</span>
+            </div>
+          </div>
+
+          {/* Card 4: User Management */}
+          <div 
+            onClick={() => setCategoryFilter("users")}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              categoryFilter === "users"
+                ? "bg-emerald-600 text-white border-emerald-700 shadow-md"
+                : "bg-white text-slate-800 border-slate-200 hover:border-emerald-400"
+            }`}
+          >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
+              categoryFilter === "users" ? "text-emerald-100" : "text-emerald-600"
+            }`}>
+              Users & Roles
+            </span>
+            <h4 className="text-sm font-extrabold truncate mt-0.5">User Creation</h4>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-lg font-black font-mono">{stats.users}</span>
+              <span className="text-xs font-bold opacity-80">actions</span>
+            </div>
+          </div>
+
+          {/* Card 5: CSV Downloads & Exports */}
+          <div 
+            onClick={() => setCategoryFilter("exports")}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              categoryFilter === "exports"
+                ? "bg-sky-600 text-white border-sky-700 shadow-md"
+                : "bg-white text-slate-800 border-slate-200 hover:border-sky-400"
+            }`}
+          >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
+              categoryFilter === "exports" ? "text-sky-100" : "text-sky-600"
+            }`}>
+              Downloads
+            </span>
+            <h4 className="text-sm font-extrabold truncate mt-0.5">CSV Exports</h4>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-lg font-black font-mono">{stats.exports}</span>
+              <span className="text-xs font-bold opacity-80">downloads</span>
+            </div>
+          </div>
+
+          {/* Card 6: Settings & Rules */}
+          <div 
+            onClick={() => setCategoryFilter("settings")}
+            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+              categoryFilter === "settings"
+                ? "bg-amber-600 text-white border-amber-700 shadow-md"
+                : "bg-white text-slate-800 border-slate-200 hover:border-amber-400"
+            }`}
+          >
+            <span className={`text-[10px] font-extrabold uppercase tracking-wide block ${
+              categoryFilter === "settings" ? "text-amber-100" : "text-amber-600"
+            }`}>
+              Configuration
+            </span>
+            <h4 className="text-sm font-extrabold truncate mt-0.5">System Rules</h4>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-lg font-black font-mono">{stats.settings}</span>
+              <span className="text-xs font-bold opacity-80">events</span>
+            </div>
+          </div>
+
+        </div>
+
+        {/* CATEGORY FILTER TABS BAR */}
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("all")}
+              className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                categoryFilter === "all"
+                  ? "bg-slate-900 text-white shadow-sm"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              All Activity Logs ({logs.length})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("clients")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                categoryFilter === "clients"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "bg-blue-50 text-blue-700 hover:bg-blue-100"
+              }`}
+            >
+              👥 Client & Domain Logs ({stats.clients})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("uploads")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                categoryFilter === "uploads"
+                  ? "bg-purple-600 text-white shadow-sm"
+                  : "bg-purple-50 text-purple-700 hover:bg-purple-100"
+              }`}
+            >
+              📁 CSV/Excel Uploads ({stats.uploads})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("users")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                categoryFilter === "users"
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+              }`}
+            >
+              👤 User & Role Creation ({stats.users})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("exports")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                categoryFilter === "exports"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "bg-sky-50 text-sky-700 hover:bg-sky-100"
+              }`}
+            >
+              📥 CSV Downloads ({stats.exports})
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setCategoryFilter("settings")}
+              className={`px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                categoryFilter === "settings"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              ⚙️ System Settings ({stats.settings})
+            </button>
+          </div>
+        </div>
+
+        {/* DATATABLE */}
         <div className="flex-1 flex flex-col mb-8">
           <DataTable
-            tableId="user_activity_report"
-            title="User Activity Report"
-            data={logs}
+            tableId="system_activity_report"
+            title="Activity Report - Live System Audit Logs"
+            data={filteredLogs}
             columns={columns}
             loading={loading}
-            searchPlaceholder="Search by username, module or action..."
+            searchPlaceholder="Search logs by username, module, action or details..."
           />
         </div>
+
       </main>
 
       {/* Detail Modal */}

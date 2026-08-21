@@ -1,37 +1,41 @@
 import apiClient from "./authApi";
 
-export const uploadAccountActivitiesFile = async (file) => {
+export const uploadAccountActivitiesFile = async (file, company = "jeenweb") => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiClient.post("/upload/account-activities", formData, {
+    return apiClient.post(`/upload/${company}/account-activities`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
     });
 };
 
-export const uploadMasterAccountFile = async (file) => {
+export const uploadMasterAccountFile = async (file, company = "jeenweb") => {
     const formData = new FormData();
     formData.append("file", file);
-    return apiClient.post("/upload/master-account", formData, {
+    return apiClient.post(`/upload/${company}/master-account`, formData, {
         headers: { "Content-Type": "multipart/form-data" }
     });
 };
 
-export const fetchUploadHistory = async () => {
-    return apiClient.get("/upload/history");
+export const fetchUploadHistory = async (company = "all") => {
+    return apiClient.get(`/upload/history?company=${company}`);
+};
+
+export const fetchTransactions = async (company = "all") => {
+    return apiClient.get(`/upload/transactions?company=${company}`);
 };
 
 export const deleteUploadRecord = async (id) => {
     return apiClient.delete(`/upload/record/${id}`);
 };
 
-export const clearAccountActivitiesSql = async () => {
-    return apiClient.delete("/upload/clear/account-activities");
+export const clearAccountActivitiesSql = async (company = "jeenweb") => {
+    return apiClient.delete(`/upload/clear/${company}/account-activities`);
 };
 
-export const clearMasterAccountSql = async () => {
-    return apiClient.delete("/upload/clear/master-account");
+export const clearMasterAccountSql = async (company = "jeenweb") => {
+    return apiClient.delete(`/upload/clear/${company}/master-account`);
 };
 
-export const clearAllUploadsSql = async () => {
-    return apiClient.delete("/upload/clear/all");
+export const clearAllUploadsSql = async (company = "all") => {
+    return apiClient.delete(`/upload/clear/${company}/all`);
 };

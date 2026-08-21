@@ -64,10 +64,10 @@ export default function CreateUser() {
     };
 
     return (
-        <div className="flex-1 bg-slate-50 font-sans text-slate-900">
+        <div className="min-h-screen flex flex-col bg-slate-50 font-sans text-slate-900">
             <Navbar title="CRM Admin" />
 
-            <main className=" mx-auto py-8 px-4 sm:px-6 lg:px-8">
+            <main className="flex-1 max-w-4xl w-full mx-auto py-8 px-4 sm:px-6 lg:px-8">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-slate-900">Create New User</h1>
