@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+Backend/node_modules/
+Frontend/node_modules/
+
+# Environment files
+.env
+Backend/.env
+Frontend/.env
+*.env.local
+
+# Builds and output
+dist/
+build/
+Frontend/dist/
+
+# Uploads
+Backend/uploads/
+uploads/
+
+# Misc
+.DS_Store
+*.zip
+*.log

@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", sans-serif;
+  /* Primary brand color and its variations */
+  --color-indigo-50: #f0f7ff;
+  --color-indigo-100: #e0efff;
+  --color-indigo-200: #bcdbff;
+  --color-indigo-300: #94c6ff;
+  --color-indigo-400: #66aeff;
+  --color-indigo-500: #0066ff;
+  --color-indigo-600: #0056cf; /* Target primary brand color */
+  --color-indigo-700: #0040a1;
+  --color-indigo-800: #002d72;
+  --color-indigo-900: #001b44;
+
+  --color-blue-50: #f0f7ff;
+  --color-blue-100: #e0efff;
+  --color-blue-200: #bcdbff;
+  --color-blue-300: #94c6ff;
+  --color-blue-400: #66aeff;
+  --color-blue-500: #0066ff;
+  --color-blue-600: #0056cf;
+  --color-blue-700: #0040a1;
+  --color-blue-800: #002d72;
+  --color-blue-900: #0056cf; /* Target header/pagination color */
+}
+
+/* Login page: white placeholder text for glass inputs */
+.login-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
