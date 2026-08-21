@@ -5,7 +5,10 @@ import {
     uploadAccountActivitiesFile,
     uploadMasterAccountFile,
     fetchUploadHistory,
-    deleteUploadRecord
+    deleteUploadRecord,
+    clearAccountActivitiesSql,
+    clearMasterAccountSql,
+    clearAllUploadsSql
 } from "../../api/uploadApi";
 
 export default function UploadPage() {
@@ -27,46 +30,12 @@ export default function UploadPage() {
     const [activeTab, setActiveTab] = useState("top10_clients");
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(false);
+    const [clearing, setClearing] = useState(false);
 
     // Data from MySQL
     const [uploadLogs, setUploadLogs] = useState([]);
     const [accountActivitiesData, setAccountActivitiesData] = useState([]);
     const [masterAccountData, setMasterAccountData] = useState([]);
-
-    // Demonstration fallback records based on user's sample data specs
-    const sampleAccountActivities = [
-        {
-            id: 1,
-            transaction_date: "Aug 2, 2026",
-            description: "Google Workspace Business Starter: Commitment renewal of 4 seats",
-            order_number: "7343380674-07",
-            domain_name: "ckindia.com",
-            customer_id: "C00sd22ht",
-            amount: 10488.00,
-            file_name: "Account_Activities.csv",
-            uploaded_at: "2026-08-21 10:30"
-        }
-    ];
-
-    const sampleMasterAccounts = [
-        {
-            id: 1,
-            domain_name: "ckindia.com",
-            product: "Google Workspace",
-            sku_plan: "Google Workspace Business Starter",
-            start_date: "August 2, 2024",
-            status: "Active",
-            payment_plan: "Annual Plan (Yearly Payment)",
-            end_date: "August 2, 2027",
-            total_seats: 4,
-            assigned_seats: 4,
-            subscription_id: "SPwwWB6VuIE8zx",
-            customer_id: "C00sd22ht",
-            order_number: "7343380674",
-            file_name: "Master_Account.xlsx",
-            uploaded_at: "2026-08-21 10:35"
-        }
-    ];
 
     // Load data from MySQL backend API
     const loadHistoryData = async () => {
@@ -75,21 +44,11 @@ export default function UploadPage() {
             const res = await fetchUploadHistory();
             if (res.data?.success) {
                 setUploadLogs(res.data.logs || []);
-                setAccountActivitiesData(
-                    res.data.accountActivities?.length > 0
-                        ? res.data.accountActivities
-                        : sampleAccountActivities
-                );
-                setMasterAccountData(
-                    res.data.masterAccounts?.length > 0
-                        ? res.data.masterAccounts
-                        : sampleMasterAccounts
-                );
+                setAccountActivitiesData(res.data.accountActivities || []);
+                setMasterAccountData(res.data.masterAccounts || []);
             }
         } catch (error) {
             console.error("Failed to load upload history from MySQL:", error);
-            setAccountActivitiesData(sampleAccountActivities);
-            setMasterAccountData(sampleMasterAccounts);
         } finally {
             setLoading(false);
         }
@@ -194,6 +153,62 @@ export default function UploadPage() {
         }
     };
 
+    // Clear Account Activities Table in SQL
+    const handleClearAccountActivitiesSql = async () => {
+        if (!window.confirm("Are you sure you want to clear all Account Activities data from the MySQL database?")) return;
+        try {
+            setClearing(true);
+            await clearAccountActivitiesSql();
+            toast.success("Account Activities SQL table cleared!");
+            setFile1(null);
+            setUploadSuccess1(false);
+            loadHistoryData();
+        } catch (error) {
+            console.error("Clear Account Activities error:", error);
+            toast.error("Failed to clear Account Activities SQL table.");
+        } finally {
+            setClearing(false);
+        }
+    };
+
+    // Clear Master Account Table in SQL
+    const handleClearMasterAccountSql = async () => {
+        if (!window.confirm("Are you sure you want to clear all Master Account data from the MySQL database?")) return;
+        try {
+            setClearing(true);
+            await clearMasterAccountSql();
+            toast.success("Master Account SQL table cleared!");
+            setFile2(null);
+            setUploadSuccess2(false);
+            loadHistoryData();
+        } catch (error) {
+            console.error("Clear Master Account error:", error);
+            toast.error("Failed to clear Master Account SQL table.");
+        } finally {
+            setClearing(false);
+        }
+    };
+
+    // Clear ALL SQL tables
+    const handleClearAllSqlData = async () => {
+        if (!window.confirm("WARNING: Are you sure you want to CLEAR ALL upload tables from MySQL?")) return;
+        try {
+            setClearing(true);
+            await clearAllUploadsSql();
+            toast.success("All upload tables cleared from MySQL database!");
+            setFile1(null);
+            setFile2(null);
+            setUploadSuccess1(false);
+            setUploadSuccess2(false);
+            loadHistoryData();
+        } catch (error) {
+            console.error("Clear All SQL error:", error);
+            toast.error("Failed to clear all SQL data.");
+        } finally {
+            setClearing(false);
+        }
+    };
+
     const handleDelete = async (id) => {
         try {
             await deleteUploadRecord(id);
@@ -267,20 +282,22 @@ export default function UploadPage() {
                                 Data Upload Center
                             </h1>
                             <p className="text-sky-100 text-sm sm:text-base leading-relaxed">
-                                Upload Excel files (.xlsx, .csv) & SVG graphics (.svg). Full historical records are indexed and stored securely in MySQL across <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">account_activities</code> and <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">master_accounts</code> tables.
+                                Upload Excel files (.xlsx, .csv) & SVG graphics (.svg). Full historical records are stored securely in MySQL across <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">account_activities</code> and <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">master_accounts</code> tables.
                             </p>
                         </div>
 
-                        {/* Top Stats Cards */}
-                        <div className="flex flex-wrap sm:flex-nowrap gap-3 shrink-0">
-                            <div className="bg-white/10 border border-white/15 rounded-2xl p-4 backdrop-blur-md min-w-[140px]">
-                                <p className="text-xs text-sky-200 font-medium">Clients Count</p>
-                                <p className="text-2xl font-black text-white mt-1">{uniqueDomains.length} <span className="text-xs font-normal text-sky-200">Unique</span></p>
-                            </div>
-                            <div className="bg-white/10 border border-white/15 rounded-2xl p-4 backdrop-blur-md min-w-[140px]">
-                                <p className="text-xs text-sky-200 font-medium">Total SQL Rows</p>
-                                <p className="text-2xl font-black text-emerald-400 mt-1">{totalRowsCount} <span className="text-xs font-normal text-emerald-200">Rows</span></p>
-                            </div>
+                        {/* Global Clear Action */}
+                        <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
+                            <button
+                                type="button"
+                                disabled={clearing || totalRowsCount === 0}
+                                onClick={handleClearAllSqlData}
+                                className="px-4 py-2.5 rounded-2xl bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/30 backdrop-blur-md text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-40 cursor-pointer"
+                                title="Truncate all upload tables in MySQL"
+                            >
+                                <i className="fa-solid fa-trash-arrow-up"></i>
+                                Clear All SQL Data
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -368,7 +385,7 @@ export default function UploadPage() {
                         </div>
 
                         {/* Action buttons */}
-                        <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                        <div className="mt-8 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                             <button
                                 type="button"
                                 disabled={!file1 || uploading1}
@@ -377,16 +394,26 @@ export default function UploadPage() {
                                     setUploadSuccess1(false);
                                     if (fileInputRef1.current) fileInputRef1.current.value = "";
                                 }}
-                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+                                className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
                             >
-                                Clear
+                                Clear File
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={clearing || accountActivitiesData.length === 0}
+                                onClick={handleClearAccountActivitiesSql}
+                                className="px-3.5 py-2 rounded-xl border border-red-200 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                                title="Clear Account Activities rows from SQL"
+                            >
+                                <i className="fa-solid fa-database text-[11px]"></i> Clear SQL Data
                             </button>
 
                             <button
                                 type="button"
                                 disabled={!file1 || uploading1}
                                 onClick={handleUpload1}
-                                className="flex-1 py-2.5 px-5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold shadow-md shadow-sky-500/20 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-extrabold shadow-md shadow-sky-500/20 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
                             >
                                 {uploading1 ? (
                                     <>
@@ -398,7 +425,7 @@ export default function UploadPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <i className="fa-solid fa-database"></i> Upload Account Activities
+                                        <i className="fa-solid fa-database"></i> Upload to SQL
                                     </>
                                 )}
                             </button>
@@ -486,7 +513,7 @@ export default function UploadPage() {
                         </div>
 
                         {/* Action buttons */}
-                        <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+                        <div className="mt-8 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                             <button
                                 type="button"
                                 disabled={!file2 || uploading2}
@@ -495,16 +522,26 @@ export default function UploadPage() {
                                     setUploadSuccess2(false);
                                     if (fileInputRef2.current) fileInputRef2.current.value = "";
                                 }}
-                                className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+                                className="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition-colors"
                             >
-                                Clear
+                                Clear File
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={clearing || masterAccountData.length === 0}
+                                onClick={handleClearMasterAccountSql}
+                                className="px-3.5 py-2 rounded-xl border border-red-200 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 disabled:opacity-40 transition-colors flex items-center gap-1.5"
+                                title="Clear Master Account rows from SQL"
+                            >
+                                <i className="fa-solid fa-database text-[11px]"></i> Clear SQL Data
                             </button>
 
                             <button
                                 type="button"
                                 disabled={!file2 || uploading2}
                                 onClick={handleUpload2}
-                                className="flex-1 py-2.5 px-5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold shadow-md shadow-teal-500/20 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-extrabold shadow-md shadow-teal-500/20 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
                             >
                                 {uploading2 ? (
                                     <>
@@ -516,7 +553,7 @@ export default function UploadPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <i className="fa-solid fa-database"></i> Upload Master Account
+                                        <i className="fa-solid fa-database"></i> Upload to SQL
                                     </>
                                 )}
                             </button>
@@ -604,7 +641,7 @@ export default function UploadPage() {
                             <div>
                                 <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Top Transaction</p>
                                 <p className="text-xl font-black text-slate-800">
-                                    ₹{highestTransaction > 0 ? highestTransaction.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : "10,488.00"}
+                                    ₹{highestTransaction > 0 ? highestTransaction.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : "0.00"}
                                 </p>
                             </div>
                         </div>
@@ -615,7 +652,7 @@ export default function UploadPage() {
                             </div>
                             <div>
                                 <p className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">Active Seats</p>
-                                <p className="text-xl font-black text-slate-800">{totalSeatsCount > 0 ? totalSeatsCount : 4} Seats</p>
+                                <p className="text-xl font-black text-slate-800">{totalSeatsCount} Seats</p>
                             </div>
                         </div>
                     </div>
@@ -642,23 +679,23 @@ export default function UploadPage() {
                                                 <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
                                                     <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
                                                         <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
-                                                            {item.domain_name || "ckindia.com"}
+                                                            {item.domain_name || "N/A"}
                                                         </span>
                                                     </td>
                                                     <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
-                                                        {item.customer_id || "C00sd22ht"}
+                                                        {item.customer_id || "N/A"}
                                                     </td>
                                                     <td className="py-3.5 px-4 font-mono text-slate-600 font-semibold whitespace-nowrap">
-                                                        {item.order_number || "7343380674-07"}
+                                                        {item.order_number || "N/A"}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-slate-700 max-w-xs truncate">
-                                                        {item.description || "Google Workspace Business Starter"}
+                                                        {item.description || "Google Workspace Business"}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-center font-bold text-slate-800 font-mono whitespace-nowrap">
                                                         4 / 4
                                                     </td>
                                                     <td className="py-3.5 px-4 text-right font-bold text-emerald-700 font-mono text-sm whitespace-nowrap">
-                                                        ₹{typeof item.amount === 'number' ? item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : (item.amount || "10,488.00")}
+                                                        ₹{typeof item.amount === 'number' ? item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : (item.amount || "0.00")}
                                                     </td>
                                                     <td className="py-3.5 px-4 text-right whitespace-nowrap">
                                                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -671,7 +708,7 @@ export default function UploadPage() {
                                         ) : (
                                             <tr>
                                                 <td colSpan="7" className="py-8 text-center text-slate-400 text-xs">
-                                                    No High-Value Client records stored yet in MySQL.
+                                                    No High-Value Client records stored yet in MySQL. Upload a file above to insert new data.
                                                 </td>
                                             </tr>
                                         )}

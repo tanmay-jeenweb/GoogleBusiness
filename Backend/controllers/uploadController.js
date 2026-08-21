@@ -6,7 +6,10 @@ const {
     getUploadLogs,
     getAccountActivities,
     getMasterAccounts,
-    deleteUploadLog
+    deleteUploadLog,
+    truncateAccountActivities,
+    truncateMasterAccounts,
+    truncateAllUploads
 } = require("../models/uploadModel.js");
 
 // Format file size helper
@@ -37,7 +40,6 @@ const uploadAccountActivities = async (req, res) => {
             const rows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: "" });
 
             for (const row of rows) {
-                // Determine values from columns or row string
                 const rowStr = JSON.stringify(row);
 
                 let transactionDate = row["Transaction Date"] || row["Date"] || row["date"] || "";
@@ -47,7 +49,6 @@ const uploadAccountActivities = async (req, res) => {
                 let customerId = row["Customer ID"] || row["customer_id"] || "";
                 let amount = row["Amount"] || row["amount"] || 0;
 
-                // Extract via Regex if embedded in description / row string
                 if (!orderNumber) {
                     const match = rowStr.match(/Order Number:\s*([^\s,]+)/i);
                     if (match) orderNumber = match[1];
@@ -78,7 +79,6 @@ const uploadAccountActivities = async (req, res) => {
             }
         }
 
-        // If 0 rows parsed (e.g. sample text or SVG), insert a demonstration record with provided sample structure
         if (recordCount === 0) {
             await insertAccountActivity({
                 transaction_date: "Aug 2, 2026",
@@ -144,7 +144,6 @@ const uploadMasterAccount = async (req, res) => {
             }
         }
 
-        // If 0 rows parsed (e.g. sample text or SVG), insert a demonstration record with provided sample structure
         if (recordCount === 0) {
             await insertMasterAccount({
                 domain_name: "ckindia.com",
@@ -197,7 +196,7 @@ const getHistory = async (req, res) => {
     }
 };
 
-// 4. Delete Upload Record
+// 4. Delete Single Record
 const deleteRecord = async (req, res) => {
     try {
         const { id } = req.params;
@@ -209,9 +208,45 @@ const deleteRecord = async (req, res) => {
     }
 };
 
+// 5. Clear Account Activities SQL Table
+const clearAccountActivitiesData = async (req, res) => {
+    try {
+        await truncateAccountActivities();
+        res.status(200).json({ success: true, message: "All Account Activities data cleared from SQL table" });
+    } catch (error) {
+        console.error("Clear Account Activities Error:", error);
+        res.status(500).json({ success: false, message: "Failed to clear Account Activities table" });
+    }
+};
+
+// 6. Clear Master Account SQL Table
+const clearMasterAccountData = async (req, res) => {
+    try {
+        await truncateMasterAccounts();
+        res.status(200).json({ success: true, message: "All Master Account data cleared from SQL table" });
+    } catch (error) {
+        console.error("Clear Master Account Error:", error);
+        res.status(500).json({ success: false, message: "Failed to clear Master Account table" });
+    }
+};
+
+// 7. Clear All Upload SQL Tables
+const clearAllData = async (req, res) => {
+    try {
+        await truncateAllUploads();
+        res.status(200).json({ success: true, message: "All upload data cleared from MySQL database" });
+    } catch (error) {
+        console.error("Clear All Data Error:", error);
+        res.status(500).json({ success: false, message: "Failed to clear SQL database" });
+    }
+};
+
 module.exports = {
     uploadAccountActivities,
     uploadMasterAccount,
     getHistory,
-    deleteRecord
+    deleteRecord,
+    clearAccountActivitiesData,
+    clearMasterAccountData,
+    clearAllData
 };

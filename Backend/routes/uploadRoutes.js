@@ -4,18 +4,27 @@ const {
     uploadAccountActivities,
     uploadMasterAccount,
     getHistory,
-    deleteRecord
+    deleteRecord,
+    clearAccountActivitiesData,
+    clearMasterAccountData,
+    clearAllData
 } = require("../controllers/uploadController.js");
-const { verifyToken } = require("../middleware/authMiddleware.js");
 
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// All upload routes
+// Upload endpoints
 router.post("/account-activities", upload.single("file"), uploadAccountActivities);
 router.post("/master-account", upload.single("file"), uploadMasterAccount);
+
+// Query & delete endpoints
 router.get("/history", getHistory);
 router.delete("/record/:id", deleteRecord);
+
+// Clear SQL tables endpoints
+router.delete("/clear/account-activities", clearAccountActivitiesData);
+router.delete("/clear/master-account", clearMasterAccountData);
+router.delete("/clear/all", clearAllData);
 
 module.exports = router;

@@ -23,3 +23,15 @@ export const fetchUploadHistory = async () => {
 export const deleteUploadRecord = async (id) => {
     return apiClient.delete(`/upload/record/${id}`);
 };
+
+export const clearAccountActivitiesSql = async () => {
+    return apiClient.delete("/upload/clear/account-activities");
+};
+
+export const clearMasterAccountSql = async () => {
+    return apiClient.delete("/upload/clear/master-account");
+};
+
+export const clearAllUploadsSql = async () => {
+    return apiClient.delete("/upload/clear/all");
+};

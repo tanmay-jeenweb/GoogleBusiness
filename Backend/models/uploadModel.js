@@ -16,7 +16,6 @@ const initUploadTables = async () => {
         )
     `;
     await db.execute(createAccountActivitiesTable);
-    console.log("Account activities table ready");
 
     // 2. Master Accounts Table (File 2)
     const createMasterAccountsTable = `
@@ -39,7 +38,6 @@ const initUploadTables = async () => {
         )
     `;
     await db.execute(createMasterAccountsTable);
-    console.log("Master accounts table ready");
 
     // 3. Upload Logs Table
     const createUploadLogsTable = `
@@ -54,7 +52,6 @@ const initUploadTables = async () => {
         )
     `;
     await db.execute(createUploadLogsTable);
-    console.log("Upload logs table ready");
 };
 
 // Insert parsed row into account_activities
@@ -139,6 +136,23 @@ const deleteUploadLog = async (id) => {
     return result;
 };
 
+// Truncate / Clear SQL Data
+const truncateAccountActivities = async () => {
+    await db.execute(`TRUNCATE TABLE account_activities`);
+    await db.execute(`DELETE FROM upload_logs WHERE file_type = 'Account Activities'`);
+};
+
+const truncateMasterAccounts = async () => {
+    await db.execute(`TRUNCATE TABLE master_accounts`);
+    await db.execute(`DELETE FROM upload_logs WHERE file_type = 'Master Account'`);
+};
+
+const truncateAllUploads = async () => {
+    await db.execute(`TRUNCATE TABLE account_activities`);
+    await db.execute(`TRUNCATE TABLE master_accounts`);
+    await db.execute(`TRUNCATE TABLE upload_logs`);
+};
+
 module.exports = {
     initUploadTables,
     insertAccountActivity,
@@ -147,5 +161,8 @@ module.exports = {
     getUploadLogs,
     getAccountActivities,
     getMasterAccounts,
-    deleteUploadLog
+    deleteUploadLog,
+    truncateAccountActivities,
+    truncateMasterAccounts,
+    truncateAllUploads
 };
