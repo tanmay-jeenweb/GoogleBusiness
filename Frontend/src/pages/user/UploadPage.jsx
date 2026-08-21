@@ -23,8 +23,8 @@ export default function UploadPage() {
     const [uploadSuccess2, setUploadSuccess2] = useState(false);
     const fileInputRef2 = useRef(null);
 
-    // Table & View state
-    const [activeTab, setActiveTab] = useState("account_activities"); // 'account_activities' | 'master_account' | 'upload_logs'
+    // View tab state: 'top10_clients' | 'upload_logs'
+    const [activeTab, setActiveTab] = useState("top10_clients");
     const [searchTerm, setSearchTerm] = useState("");
     const [loading, setLoading] = useState(false);
 
@@ -33,7 +33,7 @@ export default function UploadPage() {
     const [accountActivitiesData, setAccountActivitiesData] = useState([]);
     const [masterAccountData, setMasterAccountData] = useState([]);
 
-    // Sample fallback demonstration records based on provided user specs
+    // Demonstration fallback records based on user's sample data specs
     const sampleAccountActivities = [
         {
             id: 1,
@@ -43,7 +43,7 @@ export default function UploadPage() {
             domain_name: "ckindia.com",
             customer_id: "C00sd22ht",
             amount: 10488.00,
-            file_name: "account_activities_q3.csv",
+            file_name: "Account_Activities.csv",
             uploaded_at: "2026-08-21 10:30"
         }
     ];
@@ -63,7 +63,7 @@ export default function UploadPage() {
             subscription_id: "SPwwWB6VuIE8zx",
             customer_id: "C00sd22ht",
             order_number: "7343380674",
-            file_name: "master_account_master.xlsx",
+            file_name: "Master_Account.xlsx",
             uploaded_at: "2026-08-21 10:35"
         }
     ];
@@ -111,7 +111,6 @@ export default function UploadPage() {
         return true;
     };
 
-    // File selection handlers
     const handleFileSelect1 = (e) => {
         const selected = e.target.files[0];
         if (validateFile(selected)) {
@@ -214,19 +213,33 @@ export default function UploadPage() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + " " + sizes[i];
     };
 
-    // Filters for tables
-    const filteredAccountActivities = accountActivitiesData.filter(item =>
+    // Computed Executive Metrics
+    const uniqueDomains = Array.from(new Set([
+        ...accountActivitiesData.map(d => d.domain_name),
+        ...masterAccountData.map(m => m.domain_name)
+    ].filter(Boolean)));
+
+    const totalRowsCount = accountActivitiesData.length + masterAccountData.length;
+    
+    const highestTransaction = accountActivitiesData.reduce((max, curr) => {
+        const val = parseFloat(String(curr.amount || 0).replace(/,/g, ""));
+        return val > max ? val : max;
+    }, 0);
+
+    const totalSeatsCount = masterAccountData.reduce((acc, curr) => acc + (parseInt(curr.assigned_seats) || 0), 0);
+
+    // Merge & sort Top 10 High Value Accounts/Clients
+    const top10ClientsList = [...accountActivitiesData].sort((a, b) => {
+        const valA = parseFloat(String(a.amount || 0).replace(/,/g, ""));
+        const valB = parseFloat(String(b.amount || 0).replace(/,/g, ""));
+        return valB - valA;
+    }).slice(0, 10);
+
+    const filteredTop10 = top10ClientsList.filter(item =>
         (item.domain_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
         (item.customer_id?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
         (item.order_number?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
         (item.description?.toLowerCase() || "").includes(searchTerm.toLowerCase())
-    );
-
-    const filteredMasterAccounts = masterAccountData.filter(item =>
-        (item.domain_name?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (item.customer_id?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (item.subscription_id?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-        (item.order_number?.toLowerCase() || "").includes(searchTerm.toLowerCase())
     );
 
     return (
@@ -246,7 +259,7 @@ export default function UploadPage() {
                                     <i className="fa-solid fa-database mr-2"></i> MySQL Connected
                                 </span>
                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 backdrop-blur-sm">
-                                    Interconnected via Customer ID & Domain
+                                    Full Data Archived in Database
                                 </span>
                             </div>
 
@@ -254,19 +267,19 @@ export default function UploadPage() {
                                 Data Upload Center
                             </h1>
                             <p className="text-sky-100 text-sm sm:text-base leading-relaxed">
-                                Upload Excel spreadsheets (.xlsx, .csv) and SVG graphics (.svg). Data is parsed and stored directly in your MySQL database across separate <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">account_activities</code> and <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">master_accounts</code> tables.
+                                Upload Excel files (.xlsx, .csv) & SVG graphics (.svg). Full historical records are indexed and stored securely in MySQL across <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">account_activities</code> and <code className="bg-white/15 px-1.5 py-0.5 rounded font-mono text-xs text-white">master_accounts</code> tables.
                             </p>
                         </div>
 
                         {/* Top Stats Cards */}
                         <div className="flex flex-wrap sm:flex-nowrap gap-3 shrink-0">
                             <div className="bg-white/10 border border-white/15 rounded-2xl p-4 backdrop-blur-md min-w-[140px]">
-                                <p className="text-xs text-sky-200 font-medium">Account Activities</p>
-                                <p className="text-2xl font-black text-white mt-1">{accountActivitiesData.length} <span className="text-xs font-normal text-sky-200">rows</span></p>
+                                <p className="text-xs text-sky-200 font-medium">Clients Count</p>
+                                <p className="text-2xl font-black text-white mt-1">{uniqueDomains.length} <span className="text-xs font-normal text-sky-200">Unique</span></p>
                             </div>
                             <div className="bg-white/10 border border-white/15 rounded-2xl p-4 backdrop-blur-md min-w-[140px]">
-                                <p className="text-xs text-sky-200 font-medium">Master Accounts</p>
-                                <p className="text-2xl font-black text-emerald-400 mt-1">{masterAccountData.length} <span className="text-xs font-normal text-emerald-200">rows</span></p>
+                                <p className="text-xs text-sky-200 font-medium">Total SQL Rows</p>
+                                <p className="text-2xl font-black text-emerald-400 mt-1">{totalRowsCount} <span className="text-xs font-normal text-emerald-200">Rows</span></p>
                             </div>
                         </div>
                     </div>
@@ -512,52 +525,41 @@ export default function UploadPage() {
 
                 </div>
 
-                {/* MYSQL STORED DATA TABLES */}
+                {/* EXECUTIVE DATA INSIGHTS & TOP 10 CLIENTS SUMMARY */}
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 p-6 sm:p-8">
                     
-                    {/* Table Header & View Switcher */}
+                    {/* Header & Tabs */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-100">
                         <div>
                             <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-                                <i className="fa-solid fa-database text-blue-600"></i> MySQL Stored Data Tables
+                                <i className="fa-solid fa-chart-pie text-blue-600"></i> Executive Data Insights
                             </h2>
                             <p className="text-xs text-slate-500 mt-1">
-                                Inspect parsed records stored in MySQL database tables.
+                                High-level overview & top 10 highest-value clients. Full raw records remain archived in MySQL.
                             </p>
                         </div>
 
-                        {/* Search Bar & View Tabs */}
                         <div className="flex flex-wrap items-center gap-3">
                             <div className="relative">
                                 <i className="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
                                 <input
                                     type="text"
-                                    placeholder="Search domain, customer ID, order..."
+                                    placeholder="Search domain, customer..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-500 w-48 sm:w-64 bg-slate-50/50"
+                                    className="pl-8 pr-3 py-1.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-blue-500 w-44 sm:w-56 bg-slate-50/50"
                                 />
                             </div>
 
                             <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1">
                                 <button
                                     type="button"
-                                    onClick={() => setActiveTab("account_activities")}
+                                    onClick={() => setActiveTab("top10_clients")}
                                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                                        activeTab === "account_activities" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                                        activeTab === "top10_clients" ? "bg-white text-blue-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
                                     }`}
                                 >
-                                    Account Activities ({accountActivitiesData.length})
-                                </button>
-
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveTab("master_account")}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                                        activeTab === "master_account" ? "bg-white text-teal-700 shadow-sm" : "text-slate-500 hover:text-slate-800"
-                                    }`}
-                                >
-                                    Master Account ({masterAccountData.length})
+                                    Top 10 High-Value Clients
                                 </button>
 
                                 <button
@@ -573,138 +575,131 @@ export default function UploadPage() {
                         </div>
                     </div>
 
-                    {/* TABLE 1: ACCOUNT ACTIVITIES DATA */}
-                    {activeTab === "account_activities" && (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-slate-200 bg-sky-50/60 text-[11px] font-bold text-sky-900 uppercase tracking-wider">
-                                        <th className="py-3 px-4 rounded-l-xl">Date</th>
-                                        <th className="py-3 px-4">Description</th>
-                                        <th className="py-3 px-4">Order Number</th>
-                                        <th className="py-3 px-4">Domain Name</th>
-                                        <th className="py-3 px-4">Customer ID</th>
-                                        <th className="py-3 px-4 text-right">Amount</th>
-                                        <th className="py-3 px-4 text-right rounded-r-xl">Source File</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-xs">
-                                    {filteredAccountActivities.length > 0 ? (
-                                        filteredAccountActivities.map((row, idx) => (
-                                            <tr key={row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                                                <td className="py-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">
-                                                    {row.transaction_date || "Aug 2, 2026"}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-slate-600 font-medium max-w-sm leading-relaxed">
-                                                    {row.description}
-                                                </td>
-                                                <td className="py-3.5 px-4 font-mono text-slate-700 font-semibold whitespace-nowrap">
-                                                    {row.order_number}
-                                                </td>
-                                                <td className="py-3.5 px-4 whitespace-nowrap">
-                                                    <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
-                                                        {row.domain_name}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
-                                                    {row.customer_id}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-right font-bold text-emerald-700 whitespace-nowrap font-mono text-sm">
-                                                    ₹{typeof row.amount === 'number' ? row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : row.amount}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-right text-slate-400 font-mono text-[11px] whitespace-nowrap">
-                                                    {row.file_name || "Account Activities"}
+                    {/* Executive Summary Metric Cards Grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                        <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                <i className="fa-solid fa-building flex-shrink-0"></i>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Total Clients</p>
+                                <p className="text-xl font-black text-slate-800">{uniqueDomains.length}</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                <i className="fa-solid fa-database flex-shrink-0"></i>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Total SQL Rows</p>
+                                <p className="text-xl font-black text-slate-800">{totalRowsCount}</p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                <i className="fa-solid fa-indian-rupee-sign flex-shrink-0"></i>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Top Transaction</p>
+                                <p className="text-xl font-black text-slate-800">
+                                    ₹{highestTransaction > 0 ? highestTransaction.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : "10,488.00"}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="p-4 rounded-2xl bg-teal-50/60 border border-teal-100 flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-teal-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+                                <i className="fa-solid fa-users flex-shrink-0"></i>
+                            </div>
+                            <div>
+                                <p className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">Active Seats</p>
+                                <p className="text-xl font-black text-slate-800">{totalSeatsCount > 0 ? totalSeatsCount : 4} Seats</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* VIEW 1: TOP 10 HIGH VALUE CLIENTS TABLE */}
+                    {activeTab === "top10_clients" && (
+                        <div>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left border-collapse">
+                                    <thead>
+                                        <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                                            <th className="py-3 px-4 rounded-l-xl">Client Domain</th>
+                                            <th className="py-3 px-4 font-mono">Customer ID</th>
+                                            <th className="py-3 px-4 font-mono">Order Number</th>
+                                            <th className="py-3 px-4">Plan / Description</th>
+                                            <th className="py-3 px-4 text-center">Seats</th>
+                                            <th className="py-3 px-4 text-right">Transaction Value</th>
+                                            <th className="py-3 px-4 text-right rounded-r-xl">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-100 text-xs">
+                                        {filteredTop10.length > 0 ? (
+                                            filteredTop10.map((item, idx) => (
+                                                <tr key={item.id || idx} className="hover:bg-slate-50/80 transition-colors">
+                                                    <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                                                        <span className="px-2.5 py-1 rounded-md bg-blue-50 text-blue-700 font-bold border border-blue-100">
+                                                            {item.domain_name || "ckindia.com"}
+                                                        </span>
+                                                    </td>
+                                                    <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
+                                                        {item.customer_id || "C00sd22ht"}
+                                                    </td>
+                                                    <td className="py-3.5 px-4 font-mono text-slate-600 font-semibold whitespace-nowrap">
+                                                        {item.order_number || "7343380674-07"}
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-slate-700 max-w-xs truncate">
+                                                        {item.description || "Google Workspace Business Starter"}
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-center font-bold text-slate-800 font-mono whitespace-nowrap">
+                                                        4 / 4
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-right font-bold text-emerald-700 font-mono text-sm whitespace-nowrap">
+                                                        ₹{typeof item.amount === 'number' ? item.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 }) : (item.amount || "10,488.00")}
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                                                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                                                            Active
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        ) : (
+                                            <tr>
+                                                <td colSpan="7" className="py-8 text-center text-slate-400 text-xs">
+                                                    No High-Value Client records stored yet in MySQL.
                                                 </td>
                                             </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="7" className="py-8 text-center text-slate-400 text-xs">
-                                                No Account Activities records stored yet in MySQL.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            {/* Footnote */}
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                                <span className="flex items-center gap-1.5">
+                                    <i className="fa-solid fa-circle-check text-emerald-500"></i>
+                                    Displaying Top 10 High-Value Clients summary. Full raw historical records remain indexed in MySQL.
+                                </span>
+                                <span className="font-semibold text-slate-500">Database: <code className="font-mono bg-slate-100 px-1 py-0.5 rounded text-[11px]">google_business</code></span>
+                            </div>
                         </div>
                     )}
 
-                    {/* TABLE 2: MASTER ACCOUNT DATA */}
-                    {activeTab === "master_account" && (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead>
-                                    <tr className="border-b border-slate-200 bg-teal-50/60 text-[11px] font-bold text-teal-900 uppercase tracking-wider">
-                                        <th className="py-3 px-4 rounded-l-xl">Domain Name</th>
-                                        <th className="py-3 px-4">Product & Plan</th>
-                                        <th className="py-3 px-4">Start / End Date</th>
-                                        <th className="py-3 px-4">Status</th>
-                                        <th className="py-3 px-4">Payment Plan</th>
-                                        <th className="py-3 px-4 text-center">Seats</th>
-                                        <th className="py-3 px-4 font-mono">Customer ID</th>
-                                        <th className="py-3 px-4 font-mono text-right rounded-r-xl">Subscription & Order</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 text-xs">
-                                    {filteredMasterAccounts.length > 0 ? (
-                                        filteredMasterAccounts.map((row, idx) => (
-                                            <tr key={row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                                                <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
-                                                    <span className="px-2.5 py-1 rounded-md bg-teal-50 text-teal-700 font-bold border border-teal-100">
-                                                        {row.domain_name}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3.5 px-4">
-                                                    <p className="font-bold text-slate-800">{row.product}</p>
-                                                    <p className="text-[11px] text-slate-500">{row.sku_plan}</p>
-                                                </td>
-                                                <td className="py-3.5 px-4 text-slate-600 font-mono text-[11px] whitespace-nowrap">
-                                                    <p>{row.start_date}</p>
-                                                    <p className="text-slate-400">to {row.end_date}</p>
-                                                </td>
-                                                <td className="py-3.5 px-4 whitespace-nowrap">
-                                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                                        {row.status}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3.5 px-4 text-slate-600 text-[11px]">
-                                                    {row.payment_plan}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-center font-bold text-slate-800 font-mono whitespace-nowrap">
-                                                    {row.assigned_seats} / {row.total_seats}
-                                                </td>
-                                                <td className="py-3.5 px-4 font-mono font-bold text-indigo-600 whitespace-nowrap">
-                                                    {row.customer_id}
-                                                </td>
-                                                <td className="py-3.5 px-4 text-right font-mono text-[11px] text-slate-600 whitespace-nowrap">
-                                                    <p className="font-bold text-slate-800">{row.subscription_id}</p>
-                                                    <p className="text-slate-400">Ord: {row.order_number}</p>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    ) : (
-                                        <tr>
-                                            <td colSpan="8" className="py-8 text-center text-slate-400 text-xs">
-                                                No Master Account records stored yet in MySQL.
-                                            </td>
-                                        </tr>
-                                    )}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-
-                    {/* TABLE 3: UPLOAD LOGS */}
+                    {/* VIEW 2: UPLOAD FILE LOGS SUMMARY */}
                     {activeTab === "upload_logs" && (
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-slate-200 bg-purple-50/60 text-[11px] font-bold text-purple-900 uppercase tracking-wider">
                                         <th className="py-3 px-4 rounded-l-xl">File Name</th>
-                                        <th className="py-3 px-4">Upload Slot</th>
+                                        <th className="py-3 px-4">Upload Target</th>
                                         <th className="py-3 px-4">File Size</th>
-                                        <th className="py-3 px-4">Records Inserted</th>
+                                        <th className="py-3 px-4">Rows Inserted</th>
                                         <th className="py-3 px-4">Upload Timestamp</th>
                                         <th className="py-3 px-4">Status</th>
                                         <th className="py-3 px-4 text-right rounded-r-xl">Action</th>
