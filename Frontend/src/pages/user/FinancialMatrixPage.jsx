@@ -144,10 +144,10 @@ export default function FinancialMatrixPage() {
 
                     <button
                         onClick={handleExportCSV}
-                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
+                        title={`Export Matrix CSV (${filteredRows.length} rows)`}
+                        className="h-10 w-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center self-start sm:self-auto shrink-0"
                     >
-                        <i className="fa-solid fa-file-excel text-sm"></i>
-                        Export Matrix CSV ({filteredRows.length})
+                        <i className="fa-solid fa-file-excel text-base"></i>
                     </button>
                 </div>
 

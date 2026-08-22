@@ -181,7 +181,6 @@ export default function UserHome() {
                 {/* 4 CLEAN MINIMAL KPI CARDS */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     
-                    {/* Card 1: Total Invoiced Billing */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Invoiced Billing</span>
@@ -193,7 +192,6 @@ export default function UserHome() {
                         <span className="text-[11px] font-bold text-emerald-600 mt-1 block">Live Database Ingested</span>
                     </div>
 
-                    {/* Card 2: Active Accounts */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Customer Domains</span>
@@ -205,7 +203,6 @@ export default function UserHome() {
                         <span className="text-[11px] font-bold text-blue-600 mt-1 block">{po.total_accounts} Total Registered</span>
                     </div>
 
-                    {/* Card 3: Committed Seats Active */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Committed Seats</span>
@@ -217,7 +214,6 @@ export default function UserHome() {
                         <span className="text-[11px] font-bold text-indigo-600 mt-1 block">Active Workspace Licenses</span>
                     </div>
 
-                    {/* Card 4: Commitment Changes */}
                     <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-md transition-all">
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Commitment Events</span>
@@ -234,7 +230,7 @@ export default function UserHome() {
                 {/* 2-COLUMN MINIMAL ANALYTICS ROW */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
                     
-                    {/* Left: Activity Type Breakdown */}
+                    {/* Activity Type Breakdown */}
                     <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
                         <div>
                             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -247,42 +243,38 @@ export default function UserHome() {
                             <ActivityDonutChart items={activityTypes} totalVal={totalActivityBilling} />
                         </div>
 
-                        {/* Minimal Legend Grid */}
-                        <div className="pt-3 border-t border-slate-100 grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="grid grid-cols-2 gap-2 mt-4 pt-3 border-t border-slate-100">
                             {activityTypes.map((item, idx) => (
-                                <div key={idx} className="bg-slate-50/80 p-2.5 rounded-xl border border-slate-100 flex flex-col justify-between">
-                                    <div className="flex items-center gap-1.5 mb-0.5">
-                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ACTIVITY_COLORS[idx % ACTIVITY_COLORS.length] }}></span>
-                                        <span className="text-[11px] font-bold text-slate-600 truncate">{item.type}</span>
+                                <div key={idx} className="flex items-center justify-between text-[11px] bg-slate-50 p-2 rounded-xl border border-slate-100">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ACTIVITY_COLORS[idx % ACTIVITY_COLORS.length] }}></span>
+                                        <span className="font-bold text-slate-700 truncate">{item.type}</span>
                                     </div>
-                                    <span className="text-xs font-black text-slate-900 font-mono">{formatINR(item.amount)}</span>
+                                    <span className="font-mono font-black text-slate-900 ml-1">{formatINR(item.amount)}</span>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Right: Contract Plan Distribution */}
-                    <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between space-y-4">
+                    {/* Contract Plan Distribution */}
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
                         <div>
                             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-                                    <i className="fa-solid fa-layer-group text-purple-600"></i> Plan Commitments
+                                    <i className="fa-solid fa-file-contract text-indigo-600"></i> Contract Plan Revenue
                                 </h3>
-                                <span className="text-[11px] font-bold text-slate-400">Flexy vs Commit</span>
+                                <span className="text-[11px] font-bold text-slate-400">{billingMonth}</span>
                             </div>
 
-                            <div className="space-y-3 pt-3">
-                                
-                                {/* Flexy Plan */}
-                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/70 flex items-center justify-between">
+                            <div className="space-y-3 mt-4">
+                                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 flex items-center justify-between">
                                     <div>
-                                        <span className="text-xs font-extrabold text-slate-900 block">Flexy Plan (Usage-Based)</span>
+                                        <span className="text-xs font-extrabold text-slate-900 block">Flexible / Usage-Based Plans</span>
                                         <span className="text-[11px] text-slate-500 font-medium">{cp.flexy_plan.seats} Seats Active • {cp.flexy_plan.txns} Txns</span>
                                     </div>
                                     <span className="text-xs font-mono font-black text-slate-900">{formatINR(cp.flexy_plan.amount)}</span>
                                 </div>
 
-                                {/* Monthly Commit */}
                                 <div className="bg-blue-50/50 p-3.5 rounded-xl border border-blue-100 flex items-center justify-between">
                                     <div>
                                         <span className="text-xs font-extrabold text-blue-900 block">Monthly Commitments</span>
@@ -291,7 +283,6 @@ export default function UserHome() {
                                     <span className="text-xs font-mono font-black text-blue-950">{formatINR(cp.monthly_commit.amount)}</span>
                                 </div>
 
-                                {/* Yearly Commit */}
                                 <div className="bg-emerald-50/50 p-3.5 rounded-xl border border-emerald-100 flex items-center justify-between">
                                     <div>
                                         <span className="text-xs font-extrabold text-emerald-900 block">Yearly Commitments (Annual)</span>
@@ -299,11 +290,9 @@ export default function UserHome() {
                                     </div>
                                     <span className="text-xs font-mono font-black text-emerald-950">{formatINR(cp.yearly_commit.amount)}</span>
                                 </div>
-
                             </div>
                         </div>
                     </div>
-
                 </div>
 
                 {/* TOP DOMAIN ACCOUNTS TABLE */}

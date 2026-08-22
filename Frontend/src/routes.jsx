@@ -11,6 +11,7 @@ import ClientsPage from "./pages/user/ClientsPage";
 import AccountsPage from "./pages/user/AccountsPage";
 import ActivityReportPage from "./pages/user/ActivityReportPage";
 import FinancialMatrixPage from "./pages/user/FinancialMatrixPage";
+import GooglePayablePage from "./pages/user/GooglePayablePage";
 import CompareMonthPage from "./pages/user/CompareMonthPage";
 import ClientPerformancePage from "./pages/user/ClientPerformancePage";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -80,6 +81,10 @@ export default function AppRoutes() {
                 <Route
                     path="/user/matrix"
                     element={<FinancialMatrixPage />}
+                />
+                <Route
+                    path="/user/google-payable"
+                    element={<GooglePayablePage />}
                 />
             </Route>
 

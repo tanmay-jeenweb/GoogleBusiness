@@ -39,7 +39,9 @@ const matchMonthDate = (tDate, monthStr) => {
                           dateLower.startsWith(`${numStr}-`) || 
                           dateLower.startsWith(`${padNumStr}-`) || 
                           dateLower.includes(`/${numStr}/`) || 
-                          dateLower.includes(`/${padNumStr}/`);
+                          dateLower.includes(`/${padNumStr}/`) ||
+                          dateLower.includes(`-${padNumStr}-`) ||
+                          dateLower.includes(`-${numStr}-`);
     }
 
     const matchesMonth = matchesMonthName || matchesMonthNum;
@@ -53,6 +55,12 @@ const matchMonthDate = (tDate, monthStr) => {
     return matchesMonth && matchesYear;
 };
 
+const isGstOrBalanceRow = (r) => {
+    if (!r) return false;
+    const desc = String(r.description || '').toLowerCase();
+    return desc.includes('starting balance') || desc.includes('ending balance');
+};
+
 const getFinancialOverview = async (monthStr = "All Months") => {
     let keywordRules = [];
     try {
@@ -61,26 +69,14 @@ const getFinancialOverview = async (monthStr = "All Months") => {
 
     let masterRows = [];
     try {
-        const [jM] = await db.execute(`SELECT * FROM jeenweb_master_accounts`);
-        const [sM] = await db.execute(`SELECT * FROM satvaweb_master_accounts`);
-        masterRows = [...jM, ...sM];
-
-        if (masterRows.length === 0) {
-            const [lM] = await db.execute(`SELECT * FROM master_accounts`);
-            masterRows = lM;
-        }
+        const [m] = await db.execute(`SELECT * FROM master_accounts`);
+        masterRows = m;
     } catch (e) {}
 
     let actRows = [];
     try {
-        const [jA] = await db.execute(`SELECT * FROM jeenweb_account_activities`);
-        const [sA] = await db.execute(`SELECT * FROM satvaweb_account_activities`);
-        actRows = [...jA, ...sA];
-
-        if (actRows.length === 0) {
-            const [lA] = await db.execute(`SELECT * FROM account_activities`);
-            actRows = lA;
-        }
+        const [a] = await db.execute(`SELECT * FROM account_activities`);
+        actRows = a;
     } catch (e) {}
 
     const allUniqueDomainsSet = new Set();
@@ -125,8 +121,7 @@ const getFinancialOverview = async (monthStr = "All Months") => {
     const accountAggMap = new Map();
 
     actRows.forEach(a => {
-        const rawDesc = String(a.description || '').toLowerCase();
-        if (rawDesc.includes('starting balance') || rawDesc.includes('ending balance')) {
+        if (isGstOrBalanceRow(a)) {
             return;
         }
 
@@ -282,14 +277,8 @@ const getFinancialOverview = async (monthStr = "All Months") => {
 const getActivityBreakdownData = async (monthStr = "All Months") => {
     let actRows = [];
     try {
-        const [jA] = await db.execute(`SELECT id, 'JeenWeb' as seller_company, domain_name, customer_id, description, commitment_type, seats, amount, transaction_date FROM jeenweb_account_activities`);
-        const [sA] = await db.execute(`SELECT id, 'SatvaWeb' as seller_company, domain_name, customer_id, description, commitment_type, seats, amount, transaction_date FROM satvaweb_account_activities`);
-        actRows = [...jA, ...sA];
-
-        if (actRows.length === 0) {
-            const [lA] = await db.execute(`SELECT id, 'JeenWeb' as seller_company, domain_name, customer_id, description, commitment_type, seats, amount, transaction_date FROM account_activities`);
-            actRows = lA;
-        }
+        const [aRows] = await db.execute(`SELECT id, company as seller_company, domain_name, customer_id, description, commitment_type, seats, amount, transaction_date FROM account_activities`);
+        actRows = aRows;
     } catch (e) {}
 
     const categorizeRow = (r) => {
@@ -303,8 +292,7 @@ const getActivityBreakdownData = async (monthStr = "All Months") => {
 
     const result = actRows
         .filter(r => {
-            const desc = String(r.description || '').toLowerCase();
-            if (desc.includes('starting balance') || desc.includes('ending balance')) return false;
+            if (isGstOrBalanceRow(r)) return false;
             return matchMonthDate(r.transaction_date, monthStr);
         })
         .map(r => ({
@@ -326,14 +314,8 @@ const getActivityBreakdownData = async (monthStr = "All Months") => {
 const getAnnualFinancialMatrix = async (year = 2026) => {
     let actRows = [];
     try {
-        const [jA] = await db.execute(`SELECT * FROM jeenweb_account_activities`);
-        const [sA] = await db.execute(`SELECT * FROM satvaweb_account_activities`);
-        actRows = [...jA, ...sA];
-
-        if (actRows.length === 0) {
-            const [lA] = await db.execute(`SELECT * FROM account_activities`);
-            actRows = lA;
-        }
+        const [aRows] = await db.execute(`SELECT * FROM account_activities`);
+        actRows = aRows;
     } catch (e) {}
 
     const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -360,8 +342,7 @@ const getAnnualFinancialMatrix = async (year = 2026) => {
     const matrixMap = new Map();
 
     actRows.forEach(a => {
-        const desc = String(a.description || '').toLowerCase();
-        if (desc.includes('starting balance') || desc.includes('ending balance')) return;
+        if (isGstOrBalanceRow(a)) return;
 
         let dName = a.domain_name && a.domain_name !== 'N/A' && String(a.domain_name).trim() !== '' ? String(a.domain_name).trim() : null;
         if (!dName) {
@@ -432,21 +413,13 @@ const getAnnualFinancialMatrix = async (year = 2026) => {
 const getCompareMonthData = async (monthA = "August 2026", monthB = "August 2026") => {
     let actRows = [];
     try {
-        const [jA] = await db.execute(`SELECT * FROM jeenweb_account_activities`);
-        const [sA] = await db.execute(`SELECT * FROM satvaweb_account_activities`);
-        actRows = [...jA, ...sA];
-
-        if (actRows.length === 0) {
-            const [lA] = await db.execute(`SELECT * FROM account_activities`);
-            actRows = lA;
-        }
+        const [aRows] = await db.execute(`SELECT * FROM account_activities`);
+        actRows = aRows;
     } catch (e) {}
 
     const filterRowsByMonth = (rows, monthStr) => {
         return rows.filter(r => {
-            const desc = String(r.description || '').toLowerCase();
-            if (desc.includes('starting balance') || desc.includes('ending balance')) return false;
-
+            if (isGstOrBalanceRow(r)) return false;
             return matchMonthDate(r.transaction_date, monthStr);
         });
     };
@@ -562,14 +535,8 @@ const getClientPerformanceData = async (monthStr = "August 2026") => {
 
     let actRows = [];
     try {
-        const [jA] = await db.execute(`SELECT * FROM jeenweb_account_activities`);
-        const [sA] = await db.execute(`SELECT * FROM satvaweb_account_activities`);
-        actRows = [...jA, ...sA];
-
-        if (actRows.length === 0) {
-            const [lA] = await db.execute(`SELECT * FROM account_activities`);
-            actRows = lA;
-        }
+        const [aRows] = await db.execute(`SELECT * FROM account_activities`);
+        actRows = aRows;
     } catch (e) {}
 
     const clientsList = [];
@@ -589,8 +556,7 @@ const getClientPerformanceData = async (monthStr = "August 2026") => {
         let lifetimeBilling = 0;
 
         actRows.forEach(r => {
-            const desc = String(r.description || '').toLowerCase();
-            if (desc.includes('starting balance') || desc.includes('ending balance')) return;
+            if (isGstOrBalanceRow(r)) return;
 
             const dName = r.domain_name && r.domain_name !== 'N/A' ? String(r.domain_name).trim().toLowerCase() : null;
             if (!dName || !mappedDomainsLower.includes(dName)) return;
@@ -635,14 +601,8 @@ const getClientPerformanceData = async (monthStr = "August 2026") => {
 const getAvailableBillingMonths = async () => {
     let actRows = [];
     try {
-        const [jA] = await db.execute(`SELECT DISTINCT transaction_date FROM jeenweb_account_activities`);
-        const [sA] = await db.execute(`SELECT DISTINCT transaction_date FROM satvaweb_account_activities`);
-        actRows = [...jA, ...sA];
-
-        if (actRows.length === 0) {
-            const [lA] = await db.execute(`SELECT DISTINCT transaction_date FROM account_activities`);
-            actRows = lA;
-        }
+        const [aRows] = await db.execute(`SELECT DISTINCT transaction_date FROM account_activities`);
+        actRows = aRows;
     } catch (e) {}
 
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -669,11 +629,346 @@ const getAvailableBillingMonths = async () => {
     return monthsArray.length > 0 ? monthsArray : ["August 2026"];
 };
 
+// Fetch Google Payable & Subscription Liability Report with Rolling 12-Month Matrix
+const getGooglePayableReport = async (companyFilter = "all", startYear = 2026, startMonthIndex = 7) => {
+    let masterRows = [];
+    let actRows = [];
+
+    try {
+        if (companyFilter === "jeenweb" || companyFilter === "panel1") {
+            const [m] = await db.execute(`SELECT * FROM master_accounts WHERE company = 'Panel 1'`);
+            const [a] = await db.execute(`SELECT * FROM account_activities WHERE company = 'Panel 1'`);
+            masterRows = m;
+            actRows = a;
+        } else if (companyFilter === "satvaweb" || companyFilter === "panel2") {
+            const [m] = await db.execute(`SELECT * FROM master_accounts WHERE company = 'Panel 2'`);
+            const [a] = await db.execute(`SELECT * FROM account_activities WHERE company = 'Panel 2'`);
+            masterRows = m;
+            actRows = a;
+        } else {
+            const [m] = await db.execute(`SELECT * FROM master_accounts`);
+            const [a] = await db.execute(`SELECT * FROM account_activities`);
+            masterRows = m;
+            actRows = a;
+        }
+    } catch (e) {
+        console.error("Error fetching rows for Google Payable:", e);
+    }
+
+    // Generate Rolling 12 Months starting from August 2026
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const rollingMonths = [];
+    const baseDate = new Date(startYear, startMonthIndex, 1);
+
+    for (let i = 0; i < 12; i++) {
+        const d = new Date(baseDate.getFullYear(), baseDate.getMonth() + i, 1);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        const key = `${y}-${String(m + 1).padStart(2, '0')}`;
+        const label = `${monthNames[m]} ${y}`;
+        rollingMonths.push({ key, label, year: y, monthIndex: m });
+    }
+
+    // Date formatter helper
+    const parseExcelDateFormatted = (val) => {
+        if (!val || val === 'N/A' || val === '-' || val === 'null') return "-";
+        const str = String(val).trim();
+        if (!str || str === 'N/A' || str === '-') return "-";
+
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        if (str.includes('/')) {
+            const parts = str.split('/').map(p => p.trim());
+            if (parts.length === 3) {
+                let m = parseInt(parts[0]);
+                let d = parseInt(parts[1]);
+                let y = parseInt(parts[2]);
+                if (y < 100) y += 2000;
+                if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 2000) {
+                    return `${months[m - 1]} ${d}, ${y}`;
+                }
+            }
+        }
+
+        const dObj = new Date(str);
+        if (!isNaN(dObj.getTime()) && dObj.getFullYear() >= 2000) {
+            return `${months[dObj.getMonth()]} ${dObj.getDate()}, ${dObj.getFullYear()}`;
+        }
+
+        return str;
+    };
+
+    // 1. Map Master Accounts by domain_name and customer_id (parsing raw_data JSON if available)
+    const masterMap = new Map();
+    masterRows.forEach(m => {
+        let raw = {};
+        if (m.raw_data) {
+            try { raw = typeof m.raw_data === 'string' ? JSON.parse(m.raw_data) : m.raw_data; } catch(e) {}
+        }
+
+        const dNameTable = (m.domain_name && m.domain_name !== 'N/A') ? m.domain_name.trim() : null;
+        const cIdTable = (m.customer_id && m.customer_id !== 'N/A') ? m.customer_id.trim() : null;
+        const dNameRaw = raw.Customer || raw["Customer Name"] || null;
+        const cIdRaw = raw["Cloud Identity Id"] || raw["Customer uid"] || null;
+
+        const rawStart = raw["Creation date (PST)"] || raw["Creation Date"] || raw["Start Date"];
+        const rawEnd = raw["Renewal date (PST)"] || raw["Renewal Date"] || raw["End Date"];
+
+        const startDate = parseExcelDateFormatted(rawStart || m.start_date);
+        const endDate = parseExcelDateFormatted(rawEnd || m.end_date);
+        const skuPlan = raw.Sku || raw.SKU || (m.sku_plan && m.sku_plan !== 'N/A' && m.sku_plan !== '-' ? m.sku_plan : null) || "Google Workspace Business Starter";
+        const status = raw["Subscription status"] || (m.status && m.status !== '-' ? m.status : "Active");
+        const paymentPlan = raw["Payment plan"] || (m.payment_plan && m.payment_plan !== '-' ? m.payment_plan : "Annual Plan (Monthly Payment)");
+        const seats = parseInt(raw["Purchased licenses"] || raw["Assigned licenses"] || m.total_seats) || 1;
+
+        const info = {
+            domain_name: dNameRaw || dNameTable || "N/A",
+            customer_id: cIdRaw || cIdTable || "N/A",
+            product: raw.Product || m.product || "Google Workspace",
+            sku_plan: skuPlan,
+            start_date: startDate,
+            end_date: endDate,
+            status: status,
+            payment_plan: paymentPlan,
+            seats: seats,
+            company: m.company === "satvaweb" ? "Panel 2" : "Panel 1"
+        };
+
+        [dNameTable, cIdTable, dNameRaw, cIdRaw].forEach(k => {
+            if (k && k !== 'N/A' && k !== '-') {
+                masterMap.set(k.toLowerCase().trim(), info);
+            }
+        });
+    });
+
+    // 2. Map Account Activities by domain_name and customer_id (Summing all activity transactions per domain)
+    const domainBillingMap = new Map();
+    actRows.forEach(a => {
+        if (isGstOrBalanceRow(a)) return;
+
+        const dName = (a.domain_name && a.domain_name !== 'N/A') ? a.domain_name.trim() : null;
+        const cId = (a.customer_id && a.customer_id !== 'N/A') ? a.customer_id.trim() : null;
+        const dKey = dName ? dName.toLowerCase() : null;
+        const cKey = cId ? cId.toLowerCase() : null;
+
+        const primaryKey = dKey || cKey;
+        if (!primaryKey) return;
+
+        const amt = parseFloat(a.amount) || 0;
+        const seats = parseInt(a.seats) || 1;
+        const sku = a.sku_plan || "Google Workspace Business Starter";
+        const comp = a.company === "satvaweb" ? "Panel 2" : "Panel 1";
+
+        let infoObj;
+        if (domainBillingMap.has(dKey) || domainBillingMap.has(cKey)) {
+            infoObj = domainBillingMap.get(dKey) || domainBillingMap.get(cKey);
+            infoObj.max_monthly_billing += amt;
+            if (seats > infoObj.seats) {
+                infoObj.seats = seats;
+            }
+            if (cId && infoObj.customer_id === 'N/A') {
+                infoObj.customer_id = cId;
+            }
+            if (dName && infoObj.domain_name === 'N/A') {
+                infoObj.domain_name = dName;
+            }
+        } else {
+            infoObj = {
+                domain_name: dName || "N/A",
+                customer_id: cId || "N/A",
+                sku_plan: sku,
+                seats: seats,
+                max_monthly_billing: amt,
+                company: comp
+            };
+        }
+
+        if (dKey) domainBillingMap.set(dKey, infoObj);
+        if (cKey) domainBillingMap.set(cKey, infoObj);
+    });
+
+    // 3. Combine Master and Activity Data into Rolling Matrix Rows
+    const processedKeys = new Set();
+    const reportRows = [];
+    const monthColumnTotals = Array(12).fill(0);
+    let overallGrandTotal = 0;
+    let totalSeatsAll = 0;
+    let expiringSoonCount = 0;
+
+    const allDomainKeys = new Set([...masterMap.keys(), ...domainBillingMap.keys()]);
+
+    allDomainKeys.forEach(key => {
+        const m = masterMap.get(key) || masterMap.get(key.toLowerCase()) || {};
+        let a = domainBillingMap.get(key) || domainBillingMap.get(key.toLowerCase());
+
+        const dName = m.domain_name || a?.domain_name || key;
+        const cId = m.customer_id || a?.customer_id || "N/A";
+        const dKeyLower = (dName || '').toLowerCase().trim();
+        const cIdLower = (cId || '').toLowerCase().trim();
+
+        if (!a && (dKeyLower || cIdLower)) {
+            a = domainBillingMap.get(dKeyLower) || domainBillingMap.get(cIdLower) || {};
+        }
+        if (!a) a = {};
+
+        const uniqueIdKey = `${dName.toLowerCase()}_${cId.toLowerCase()}`;
+        if (processedKeys.has(uniqueIdKey)) return;
+        processedKeys.add(uniqueIdKey);
+
+        const skuPlan = m.sku_plan || a.sku_plan || "Google Workspace Business Starter";
+        const company = m.company || a.company || "Panel 1";
+        const totalSeats = m.seats || a.seats || 1;
+        
+        const monthlyBilling = a.max_monthly_billing || 0;
+
+        const perSeatCost = totalSeats > 0 ? (monthlyBilling / totalSeats) : 0;
+        totalSeatsAll += totalSeats;
+
+        const planText = String(m.payment_plan || a.payment_plan || '').toLowerCase();
+        const isFlexi = planText.includes('flex') || planText.includes('usage');
+        const isYearlyPayment = planText.includes('yearly') || planText.includes('annual plan (yearly');
+
+        // Date Parser Helper for slash, ISO, or long date formats
+        const parseDateToObj = (dateStr) => {
+            if (!dateStr || dateStr === "-" || dateStr === "N/A" || dateStr === "null") return null;
+            const str = String(dateStr).trim();
+            if (str.includes('/')) {
+                const parts = str.split('/').map(p => p.trim());
+                if (parts.length === 3) {
+                    let m = parseInt(parts[0]);
+                    let d = parseInt(parts[1]);
+                    let y = parseInt(parts[2]);
+                    if (y < 100) y += 2000;
+                    if (m >= 1 && m <= 12 && d >= 1 && d <= 31 && y >= 2000) {
+                        return new Date(y, m - 1, d);
+                    }
+                }
+            }
+            const parsed = new Date(str);
+            if (!isNaN(parsed.getTime())) return parsed;
+            return null;
+        };
+
+        // Parse End Date & Expiry Month Key
+        let expiryDateObj = isFlexi ? null : parseDateToObj(m.end_date);
+        let startDateObj = parseDateToObj(m.start_date);
+
+        // Fallback: If expiryDate is missing but start_date is present, calculate from payment_plan
+        if (!isFlexi && !expiryDateObj && startDateObj) {
+            const yearAdd = planText.includes('3 year') ? 3 : 1;
+            expiryDateObj = new Date(startDateObj.getFullYear() + yearAdd, startDateObj.getMonth(), startDateObj.getDate());
+        }
+
+        let expiryMonthKey = null;
+        let daysRemaining = null;
+
+        if (expiryDateObj && !isFlexi) {
+            expiryMonthKey = `${expiryDateObj.getFullYear()}-${String(expiryDateObj.getMonth() + 1).padStart(2, '0')}`;
+            const diffTime = expiryDateObj.getTime() - new Date().getTime();
+            daysRemaining = Math.ceil(diffTime / (1000 * 3600 * 24));
+            if (daysRemaining > 0 && daysRemaining <= 60) expiringSoonCount++;
+        }
+
+        // Display End Date
+        let endDateDisplay = m.end_date || "-";
+        if (isFlexi) {
+            endDateDisplay = "No Expiry (Flexi)";
+        }
+
+        // Build 12-Month Projected Grid for this domain
+        let domainRowTotal = 0;
+        const monthsGrid = rollingMonths.map((rm, mIdx) => {
+            let amount = monthlyBilling;
+            let isExpiryMonth = false;
+            let isExpired = false;
+
+            if (isFlexi) {
+                // Flexible Plan: continuous monthly billing with no contract expiry
+                amount = monthlyBilling;
+                isExpiryMonth = false;
+                isExpired = false;
+            } else if (isYearlyPayment) {
+                // Annual Plan (Yearly Payment): One-time upfront annual payout
+                if (mIdx === 0 || rm.key === expiryMonthKey) {
+                    amount = monthlyBilling;
+                    isExpiryMonth = (rm.key === expiryMonthKey);
+                } else {
+                    amount = 0;
+                }
+            } else {
+                // Annual Plan (Monthly Payment) or 36-Month Plan: Monthly recurring until contract expiry
+                if (expiryDateObj) {
+                    const cellDate = new Date(rm.year, rm.monthIndex, 1);
+                    if (rm.key === expiryMonthKey) {
+                        isExpiryMonth = true;
+                        amount = monthlyBilling;
+                    } else if (cellDate > expiryDateObj && rm.key !== expiryMonthKey) {
+                        isExpired = true;
+                        amount = 0;
+                    }
+                }
+            }
+
+            domainRowTotal += amount;
+            return {
+                monthKey: rm.key,
+                amount: amount,
+                isExpiryMonth,
+                isExpired
+            };
+        });
+
+        // Add to month column totals
+        monthsGrid.forEach((cell, idx) => {
+            monthColumnTotals[idx] += cell.amount;
+        });
+
+        overallGrandTotal += domainRowTotal;
+
+        reportRows.push({
+            id: reportRows.length + 1,
+            company: company,
+            domain_name: dName,
+            customer_id: cId,
+            product: m.product || "Google Workspace",
+            sku_plan: skuPlan,
+            status: m.status || "Active",
+            payment_plan: m.payment_plan || "Annual Plan (Monthly Payment)",
+            start_date: m.start_date || "-",
+            end_date: endDateDisplay,
+            days_remaining: daysRemaining,
+            total_seats: totalSeats,
+            latest_monthly_billing: monthlyBilling,
+            per_seat_cost: perSeatCost,
+            months_grid: monthsGrid,
+            domain_total: domainRowTotal
+        });
+    });
+
+    // Sort rows by 12-month domain total (descending)
+    reportRows.sort((x, y) => y.domain_total - x.domain_total);
+
+    return {
+        months: rollingMonths,
+        rows: reportRows,
+        month_totals: monthColumnTotals,
+        grand_total: overallGrandTotal,
+        summary: {
+            total_monthly_payable: monthColumnTotals[0] || 0,
+            grand_total_12mo: overallGrandTotal,
+            total_seats_all: totalSeatsAll,
+            expiring_soon_count: expiringSoonCount,
+            total_contracts: reportRows.length
+        }
+    };
+};
+
 module.exports = {
     getFinancialOverview,
     getActivityBreakdownData,
     getAnnualFinancialMatrix,
     getCompareMonthData,
     getClientPerformanceData,
-    getAvailableBillingMonths
+    getAvailableBillingMonths,
+    getGooglePayableReport
 };

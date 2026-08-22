@@ -5,6 +5,7 @@ const {
     uploadMasterAccount,
     getHistory,
     getTransactions,
+    updateTransactionCategory,
     deleteRecord,
     clearAccountActivitiesData,
     clearMasterAccountData,
@@ -21,9 +22,11 @@ router.post("/master-account", upload.single("file"), uploadMasterAccount);
 router.post("/:company/account-activities", upload.single("file"), uploadAccountActivities);
 router.post("/:company/master-account", upload.single("file"), uploadMasterAccount);
 
-// Query & delete endpoints
+// Query & delete & update endpoints
 router.get("/history", getHistory);
 router.get("/transactions", getTransactions);
+router.patch("/transactions/:id/category", updateTransactionCategory);
+router.put("/transactions/:id/category", updateTransactionCategory);
 router.delete("/record/:id", deleteRecord);
 
 // Clear SQL tables endpoints

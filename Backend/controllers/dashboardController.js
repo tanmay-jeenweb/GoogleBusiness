@@ -4,7 +4,8 @@ const {
     getAnnualFinancialMatrix, 
     getCompareMonthData, 
     getClientPerformanceData,
-    getAvailableBillingMonths
+    getAvailableBillingMonths,
+    getGooglePayableReport
 } = require("../models/dashboardModel.js");
 
 // Fetch Financial Overview for Dashboard
@@ -98,11 +99,27 @@ const fetchAvailableMonths = async (req, res) => {
     }
 };
 
+// Fetch Google Payable & Subscription Liability Report
+const fetchGooglePayable = async (req, res) => {
+    try {
+        const company = req.query.company || "all";
+        const data = await getGooglePayableReport(company);
+        res.status(200).json({
+            success: true,
+            data
+        });
+    } catch (error) {
+        console.error("Fetch Google Payable Report Error:", error);
+        res.status(500).json({ success: false, message: "Failed to fetch Google payable report", error: error.message });
+    }
+};
+
 module.exports = {
     fetchFinancialOverview,
     fetchActivityBreakdown,
     fetchAnnualFinancialMatrix,
     fetchCompareMonth,
     fetchClientPerformance,
-    fetchAvailableMonths
+    fetchAvailableMonths,
+    fetchGooglePayable
 };

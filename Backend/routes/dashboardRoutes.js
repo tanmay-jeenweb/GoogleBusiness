@@ -5,7 +5,8 @@ const {
     fetchAnnualFinancialMatrix, 
     fetchCompareMonth, 
     fetchClientPerformance,
-    fetchAvailableMonths
+    fetchAvailableMonths,
+    fetchGooglePayable
 } = require("../controllers/dashboardController.js");
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get("/annual-matrix", fetchAnnualFinancialMatrix);
 router.get("/compare-month", fetchCompareMonth);
 router.get("/client-performance", fetchClientPerformance);
 router.get("/available-months", fetchAvailableMonths);
+router.get("/google-payable", fetchGooglePayable);
 
 module.exports = router;

@@ -66,6 +66,8 @@ const buildHiddenSet = (initialCols, savedVisibleKeys) => {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
+// ── Component ──────────────────────────────────────────────────────────────────
+
 export default function DataTable({
   title = "Data Table",
   data = [],
@@ -75,6 +77,13 @@ export default function DataTable({
   toggleActions = null,
   searchPlaceholder = "Search...",
   tableId = null,
+  defaultPageSize = 8,
+  pageSizeOptions = null,
+  showTopPagination = false,
+  renderSubRow = null,
+  onSearchChange = null,
+  onColumnVisibilityChange = null,
+  renderFooter = null,
 }) {
   // Full ordered list (visible + hidden). Visible ones come first.
   const [columns, setColumns] = useState(initialColumns);
@@ -152,7 +161,7 @@ export default function DataTable({
 
   // ── Search / pagination / sort ────────────────────────────────────────────
   const [search, setSearch] = useState('');
-  const [pageSize, setPageSize] = useState(8);
+  const [pageSize, setPageSize] = useState(defaultPageSize);
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
@@ -161,6 +170,17 @@ export default function DataTable({
     () => columns.filter(c => !hiddenColumns.has(c.key)),
     [columns, hiddenColumns]
   );
+
+  // ── Notify parent when column visibility changes ────────────────────────────
+  useEffect(() => {
+    if (typeof onColumnVisibilityChange === 'function') {
+      onColumnVisibilityChange({
+        hiddenColumns,
+        visibleKeys: visibleColumns.map(c => c.key),
+        isKeyVisible: (key) => !hiddenColumns.has(key)
+      });
+    }
+  }, [hiddenColumns, visibleColumns, onColumnVisibilityChange]);
 
   // ── Filtered / sorted / paginated rows ───────────────────────────────────
   const filteredRows = useMemo(() => {
@@ -180,6 +200,15 @@ export default function DataTable({
       filtered.sort((a, b) => {
         const aVal = a[sortConfig.key];
         const bVal = b[sortConfig.key];
+
+        // Numerical comparison if both are numbers or numeric strings
+        const numA = typeof aVal === 'number' ? aVal : (aVal !== null && aVal !== '' && !isNaN(Number(aVal)) ? Number(aVal) : null);
+        const numB = typeof bVal === 'number' ? bVal : (bVal !== null && bVal !== '' && !isNaN(Number(bVal)) ? Number(bVal) : null);
+
+        if (numA !== null && numB !== null) {
+          return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+        }
+
         const aValue = aVal != null ? String(aVal).toLowerCase() : '';
         const bValue = bVal != null ? String(bVal).toLowerCase() : '';
         if (sortConfig.direction === 'asc') return aValue > bValue ? 1 : aValue < bValue ? -1 : 0;
@@ -195,6 +224,13 @@ export default function DataTable({
     ? filteredRows
     : filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
+  // Automatically reset to page 1 if current page exceeds total pages
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [totalPages, currentPage]);
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSort = (key) => {
     setSortConfig(prev => ({
@@ -204,7 +240,11 @@ export default function DataTable({
     setCurrentPage(1);
   };
 
-  const handleSearch = (val) => { setSearch(val); setCurrentPage(1); };
+  const handleSearch = (val) => {
+    setSearch(val);
+    setCurrentPage(1);
+    onSearchChange?.(val);
+  };
   const handlePageSize = (val) => {
     setPageSize(val === 'all' ? 'all' : Number(val));
     setCurrentPage(1);
@@ -375,6 +415,50 @@ export default function DataTable({
                 </div>
               )}
 
+              {/* Top Pagination Control */}
+              {showTopPagination && (
+                <div className="flex items-center gap-2 border-l border-slate-200 pl-2 ml-1 text-xs text-slate-500">
+                  <select
+                    value={pageSize}
+                    onChange={(e) => handlePageSize(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-300 bg-slate-50 px-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-600 cursor-pointer"
+                  >
+                    <option value={8}>8 / page</option>
+                    <option value={10}>10 / page</option>
+                    <option value={25}>25 / page</option>
+                    <option value={50}>50 / page</option>
+                    <option value={100}>100 / page</option>
+                    <option value="all">All</option>
+                  </select>
+
+                  {pageSize !== 'all' && (
+                    <span className="font-medium whitespace-nowrap hidden sm:inline text-xs text-slate-600">
+                      {filteredRows.length > 0 ? Math.min((currentPage - 1) * pageSize + 1, filteredRows.length) : 0}–{Math.min(currentPage * pageSize, filteredRows.length)} of {filteredRows.length}
+                    </span>
+                  )}
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1 || pageSize === 'all'}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
+                      title="Previous Page"
+                    >
+                      ‹
+                    </button>
+                    <span className="font-bold text-slate-700 px-1 text-xs min-w-[32px] text-center">{currentPage}/{totalPages}</span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages || pageSize === 'all'}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed font-bold"
+                      title="Next Page"
+                    >
+                      ›
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Page-level action button (Add, toggles, etc.) */}
               {actionButton}
             </div>
@@ -406,20 +490,28 @@ export default function DataTable({
                       onDragStart={() => setDraggedColumn(column.key)}
                       onDragOver={(e) => e.preventDefault()}
                       onDrop={() => handleDrop(column.key)}
-                      className="border-b border-blue-800 bg-blue-900 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-white"
-                      style={{ minWidth: originalColumn.minWidth || '140px' }}
+                      className="border-b border-slate-200/80 px-3 py-3 text-left text-xs font-extrabold uppercase tracking-wide transition-colors"
+                      style={{
+                        minWidth: originalColumn.minWidth || '140px',
+                        backgroundColor: 'var(--theme-table-header-bg, #0f172a)',
+                        color: 'var(--theme-table-header-text, #ffffff)'
+                      }}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => handleSort(column.key)}
-                          disabled={originalColumn.sortable === false}
-                          className={`flex items-center gap-1 ${originalColumn.sortable === false ? 'cursor-default' : ''}`}
-                        >
-                          {originalColumn.label}
-                          {originalColumn.sortable !== false && (
+                        {originalColumn.sortable === false ? (
+                          <div className="flex items-center gap-1">
+                            {originalColumn.label}
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleSort(column.key)}
+                            className="flex items-center gap-1 text-left cursor-pointer"
+                          >
+                            <span>{originalColumn.label}</span>
                             <span className="text-[10px] text-blue-200">⇅</span>
-                          )}
-                        </button>
+                          </button>
+                        )}
                         <DragIcon />
                       </div>
                     </th>
@@ -436,20 +528,23 @@ export default function DataTable({
                 </tr>
               ) : paginatedRows.length > 0 ? (
                 paginatedRows.map((row, rowIndex) => (
-                  <tr key={row.id || rowIndex} className="transition-all hover:bg-slate-50">
-                    {visibleColumns.map((column) => {
-                      const originalColumn = initialColumns.find(c => c.key === column.key) || column;
-                      return (
-                        <td
-                          key={column.key}
-                          className="border-b border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
-                          style={{ minWidth: originalColumn.minWidth || '140px' }}
-                        >
-                          {originalColumn.render ? originalColumn.render(row) : row[column.key]}
-                        </td>
-                      );
-                    })}
-                  </tr>
+                  <React.Fragment key={row.id || rowIndex}>
+                    <tr className="transition-all hover:bg-slate-50">
+                      {visibleColumns.map((column) => {
+                        const originalColumn = initialColumns.find(c => c.key === column.key) || column;
+                        return (
+                          <td
+                            key={column.key}
+                            className="border-b border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 align-top"
+                            style={{ minWidth: originalColumn.minWidth || '140px' }}
+                          >
+                            {originalColumn.render ? originalColumn.render(row) : row[column.key]}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {renderSubRow && renderSubRow(row, visibleColumns.length)}
+                  </React.Fragment>
                 ))
               ) : (
                 <tr>
@@ -459,6 +554,11 @@ export default function DataTable({
                 </tr>
               )}
             </tbody>
+            {renderFooter && !loading && filteredRows.length > 0 && (
+              <tfoot className="bg-slate-100 font-extrabold border-t-2 border-slate-300">
+                {renderFooter(visibleColumns, filteredRows)}
+              </tfoot>
+            )}
           </table>
         </div>
 
@@ -471,11 +571,11 @@ export default function DataTable({
               onChange={(e) => handlePageSize(e.target.value)}
               className="h-8 rounded-md border border-slate-300 bg-slate-50 px-2 text-sm text-slate-700 outline-none focus:border-blue-500"
             >
-              <option value={8}>8</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value="all">All</option>
+              {(pageSizeOptions || [8, 25, 50, 100, 'all']).map((opt, i) => (
+                <option key={i} value={opt}>
+                  {opt === 'all' ? 'All' : opt}
+                </option>
+              ))}
             </select>
           </div>
 

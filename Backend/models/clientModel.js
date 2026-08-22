@@ -122,19 +122,15 @@ const getUnassignedDomains = async () => {
     // 2. Query master account tables
     let masterRows = [];
     try {
-        const [jMaster] = await db.execute(`SELECT domain_name, customer_id, sku_plan, total_seats FROM jeenweb_master_accounts WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
-        const [sMaster] = await db.execute(`SELECT domain_name, customer_id, sku_plan, total_seats FROM satvaweb_master_accounts WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
-        const [lMaster] = await db.execute(`SELECT domain_name, customer_id, sku_plan, total_seats FROM master_accounts WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
-        masterRows = [...jMaster, ...sMaster, ...lMaster];
+        const [mRows] = await db.execute(`SELECT domain AS domain_name, customer_id, sku AS sku_plan, purchased_licenses AS total_seats FROM master_accounts WHERE domain IS NOT NULL AND domain != 'N/A'`);
+        masterRows = mRows;
     } catch (e) {}
 
     // 3. Query account activities tables
     let actRows = [];
     try {
-        const [jAct] = await db.execute(`SELECT domain_name, customer_id, sku_plan, seats FROM jeenweb_account_activities WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
-        const [sAct] = await db.execute(`SELECT domain_name, customer_id, sku_plan, seats FROM satvaweb_account_activities WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
-        const [lAct] = await db.execute(`SELECT domain_name, customer_id, sku_plan, seats FROM account_activities WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
-        actRows = [...jAct, ...sAct, ...lAct];
+        const [aRows] = await db.execute(`SELECT domain_name, customer_id, sku_plan, seats FROM account_activities WHERE domain_name IS NOT NULL AND domain_name != 'N/A'`);
+        actRows = aRows;
     } catch (e) {}
 
     // Combine & aggregate distinct domains

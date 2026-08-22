@@ -24,6 +24,10 @@ export const fetchTransactions = async (company = "all") => {
     return apiClient.get(`/upload/transactions?company=${company}`);
 };
 
+export const updateTransactionCategory = async (id, activity_category) => {
+    return apiClient.patch(`/upload/transactions/${id}/category`, { activity_category });
+};
+
 export const deleteUploadRecord = async (id) => {
     return apiClient.delete(`/upload/record/${id}`);
 };

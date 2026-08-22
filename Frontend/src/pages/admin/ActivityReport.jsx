@@ -220,7 +220,8 @@ export default function ActivityReport() {
         const act = (row.change_type || 'LOG').toLowerCase();
         let badgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
 
-        if (act.includes("upload")) badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+        if (act.includes("login")) badgeStyle = "bg-teal-50 text-teal-700 border-teal-200";
+        else if (act.includes("upload")) badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
         else if (act.includes("create") || act.includes("approve")) badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
         else if (act.includes("export") || act.includes("download")) badgeStyle = "bg-blue-50 text-blue-700 border-blue-200";
         else if (act.includes("update") || act.includes("edit")) badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
@@ -260,33 +261,8 @@ export default function ActivityReport() {
     <div className="flex-1 flex flex-col bg-slate-50 font-sans text-slate-900 min-h-screen">
       <Navbar title="Activity Report" />
 
-      <main className="flex-1 flex flex-col w-full max-w-[96rem] mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+      <main className="flex-1 flex flex-col w-full max-w-[96rem] mx-auto py-6 px-4 sm:px-6 lg:px-8 space-y-6">
         
-        {/* Header & Export Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wide">
-                System Activity Audit Trail
-              </span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
-              Activity Report & System Logs
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Real-time audit log of client management, CSV/Excel uploads, report exports, and user modifications.
-            </p>
-          </div>
-
-          <button
-            onClick={handleExportCSV}
-            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
-          >
-            <i className="fa-solid fa-file-excel text-sm"></i>
-            Export Activity Logs CSV ({logs.length})
-          </button>
-        </div>
-
         {/* DIRECT DATATABLE DISPLAY */}
         <div className="flex-1 flex flex-col mb-8">
           <DataTable
@@ -295,6 +271,15 @@ export default function ActivityReport() {
             data={logs}
             columns={columns}
             loading={loading}
+            actionButton={
+              <button
+                onClick={handleExportCSV}
+                title={`Export CSV (${logs.length} logs)`}
+                className="h-10 w-10 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center justify-center shrink-0"
+              >
+                <i className="fa-solid fa-file-excel text-base"></i>
+              </button>
+            }
             searchPlaceholder="Search logs by username, module, action or details..."
           />
         </div>

@@ -8,6 +8,7 @@ const {
     getAccountActivities,
     getMasterAccounts,
     getJoinedTransactions,
+    updateTransactionCategoryInDb,
     deleteUploadLog,
     truncateCompanyAccountActivities,
     truncateCompanyMasterAccounts,
@@ -231,27 +232,37 @@ const uploadAccountActivities = async (req, res) => {
                 let orderNumber = getRowVal(row, ["ordernumber", "order", "orderid"]);
                 let domainName = getRowVal(row, ["domainname", "domain", "primarydomain", "customerdomain"]);
                 let customerId = getRowVal(row, ["customerid", "customer", "accountid", "clientid"]);
-                let amountStr = getRowVal(row, ["amount", "cost", "total", "price", "inr", "value"]);
+                let amountStr = getRowVal(row, ["amount", "cost", "total", "price", "inr", "value", "subtotalinr", "amountinr"]);
 
                 const fullText = (description + " " + rowStr).trim();
                 const lowerText = fullText.toLowerCase();
-                if (lowerText.includes("starting balance") || lowerText.includes("ending balance")) {
-                    continue; // Skip statement summary balance rows from transaction ingestion
-                }
-                if (!domainName) domainName = extractDomainFromText(fullText);
-                if (!customerId) customerId = extractCustomerIdFromText(fullText);
-                if (!orderNumber) orderNumber = extractOrderNumberFromText(fullText);
 
-                let commitmentType = extractCommitmentType(fullText, keywordRules);
-                let seats = extractSeatsFromText(fullText);
-                let skuPlan = extractSkuPlanFromText(description || fullText);
+                if (lowerText.includes("starting balance") || lowerText.includes("ending balance") || lowerText.includes("subtotal")) {
+                    continue; // Skip statement balance / subtotal summary rows
+                }
+
+                let isGstRow = lowerText.includes("gst") || lowerText.includes("tax");
+                let commitmentType = isGstRow ? "GST / Tax Summary" : extractCommitmentType(fullText, keywordRules);
+                let seats = isGstRow ? 0 : extractSeatsFromText(fullText);
+                let skuPlan = isGstRow ? "GST Tax" : extractSkuPlanFromText(description || fullText);
+
+                if (isGstRow) {
+                    domainName = "GST Tax (Integrated GST)";
+                    customerId = "GST-TAX";
+                    if (!orderNumber) orderNumber = "GST-" + (transactionDate ? transactionDate.replace(/[^0-9]/g, '') : "TAX");
+                } else {
+                    if (!domainName) domainName = extractDomainFromText(fullText);
+                    if (!customerId) customerId = extractCustomerIdFromText(fullText);
+                    if (!orderNumber) orderNumber = extractOrderNumberFromText(fullText);
+                }
 
                 if (!transactionDate) {
                     const match = rowStr.match(/([A-Z][a-z]{2}\s+\d{1,2},\s+\d{4})/);
                     if (match) transactionDate = match[1];
                 }
 
-                let amount = amountStr ? parseFloat(amountStr.replace(/,/g, "")) : 0.00;
+                let amountClean = amountStr ? parseFloat(String(amountStr).replace(/[^0-9.-]/g, "")) : 0.00;
+                let amount = isNaN(amountClean) ? 0.00 : amountClean;
 
                 const result = await insertAccountActivity(company, {
                     transaction_date: transactionDate || "N/A",
@@ -330,18 +341,18 @@ const uploadMasterAccount = async (req, res) => {
             for (const row of rows) {
                 const rowStr = JSON.stringify(row);
 
-                let domainName = getRowVal(row, ["domainname", "domain", "primarydomain", "customerdomain"]);
+                let domainName = getRowVal(row, ["customer", "customername", "domainname", "domain", "primarydomain", "customerdomain"]);
                 let product = getRowVal(row, ["product", "service", "item"]);
-                let skuPlan = getRowVal(row, ["skuplan", "plan", "sku", "subscription"]);
-                let startDate = parseExcelDate(getRowVal(row, ["startdate", "start", "purchasedate"]));
-                let status = getRowVal(row, ["status", "state"]);
+                let skuPlan = getRowVal(row, ["sku", "skuplan", "plan", "subscription"]);
+                let startDate = parseExcelDate(getRowVal(row, ["creationdatepst", "creationdate", "startdate", "start", "purchasedate"]));
+                let status = getRowVal(row, ["subscriptionstatus", "status", "state"]);
                 let paymentPlan = getRowVal(row, ["paymentplan", "payment", "planterm"]);
-                let endDate = parseExcelDate(getRowVal(row, ["enddate", "end", "expirydate"]));
-                let totalSeats = getRowVal(row, ["totalseats", "total", "seats", "licenses"]);
-                let assignedSeats = getRowVal(row, ["assignedseats", "assigned", "used"]);
-                let subscriptionId = getRowVal(row, ["subscriptionid", "subscription", "subid"]);
-                let customerId = getRowVal(row, ["customerid", "customer", "accountid"]);
-                let orderNumber = getRowVal(row, ["ordernumber", "order", "orderid"]);
+                let endDate = parseExcelDate(getRowVal(row, ["renewaldatepst", "renewaldate", "enddate", "end", "expirydate"]));
+                let totalSeats = getRowVal(row, ["purchasedlicenses", "totalseats", "total", "seats", "licenses"]);
+                let assignedSeats = getRowVal(row, ["assignedlicenses", "assignedseats", "assigned", "used"]);
+                let subscriptionId = getRowVal(row, ["subscriptionid", "subscription", "subid", "provisioningid"]);
+                let customerId = getRowVal(row, ["cloudidentityid", "customeruid", "customerid", "accountid"]);
+                let orderNumber = getRowVal(row, ["provisioningid", "ordernumber", "order", "orderid"]);
 
                 if (!domainName) domainName = extractDomainFromText(rowStr);
                 if (!customerId) customerId = extractCustomerIdFromText(rowStr);
@@ -443,12 +454,23 @@ const getTransactions = async (req, res) => {
         const rawTransactions = await getJoinedTransactions(company);
 
         const formatted = rawTransactions.map(t => {
-            const cleanDate = parseExcelDate(t.transaction_date) || "Aug 2, 2026";
+            let cleanDate = "-";
+            if (t.transaction_date) {
+                const dObj = new Date(t.transaction_date);
+                if (!isNaN(dObj.getTime())) {
+                    cleanDate = dObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                } else {
+                    cleanDate = String(t.transaction_date);
+                }
+            }
+
+            const compLabel = (t.company && String(t.company).toLowerCase().includes("satva")) ? "Panel 2 (SatvaWeb)" : "Panel 1 (JeenWeb)";
+
             return {
                 id: t.id,
-                seller_company: t.seller_company || "JeenWeb",
+                seller_company: compLabel,
                 date: cleanDate,
-                billing_month: formatBillingMonth(cleanDate),
+                billing_month: t.billing_month || "2026-08",
                 activity_category: t.commitment_type || deriveActivityCategory(t.description),
                 plan_type: t.sku_plan || "Google Workspace Business Starter",
                 product: t.product || "Google Workspace",
@@ -457,7 +479,10 @@ const getTransactions = async (req, res) => {
                 seats: t.seats || 1,
                 amount: parseFloat(t.amount) || 0.00,
                 order_number: t.order_number || "N/A",
-                description: t.description || "N/A"
+                description: t.description || "N/A",
+                creation_date: t.creation_date ? new Date(t.creation_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-",
+                renewal_date: t.renewal_date ? new Date(t.renewal_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-",
+                payment_plan: t.payment_plan || "-"
             };
         });
 
@@ -523,11 +548,54 @@ const clearAllData = async (req, res) => {
     }
 };
 
+// 9. Update Single Transaction Activity Category
+const updateTransactionCategory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { activity_category } = req.body;
+
+        if (!activity_category || !activity_category.trim()) {
+            return res.status(400).json({ success: false, message: "Activity Category is required" });
+        }
+
+        const resUpdate = await updateTransactionCategoryInDb(id, activity_category.trim());
+        if (!resUpdate.success) {
+            return res.status(404).json({ success: false, message: resUpdate.message || "Transaction not found" });
+        }
+
+        // Create audit log for this update
+        try {
+            await createAuditLog(
+                req.user?.id || null,
+                req.user?.name || req.user?.username || req.user?.email || "Admin User",
+                req.headers['x-device-id'] || "Web Client",
+                "Transactions Center",
+                "updated",
+                { transaction_id: id, domain: resUpdate.domainName, activity_category: resUpdate.oldCategory },
+                { transaction_id: id, domain: resUpdate.domainName, activity_category: activity_category.trim() }
+            );
+        } catch (auditErr) {
+            console.error("Audit Log Creation Error on Category Update:", auditErr);
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: `Transaction category updated to '${activity_category}'`,
+            oldCategory: resUpdate.oldCategory,
+            newCategory: activity_category
+        });
+    } catch (error) {
+        console.error("Update Transaction Category Error:", error);
+        return res.status(500).json({ success: false, message: "Failed to update transaction category" });
+    }
+};
+
 module.exports = {
     uploadAccountActivities,
     uploadMasterAccount,
     getHistory,
     getTransactions,
+    updateTransactionCategory,
     deleteRecord,
     clearAccountActivitiesData,
     clearMasterAccountData,

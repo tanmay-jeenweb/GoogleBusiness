@@ -90,6 +90,18 @@ const login = async (req, res) => {
                 { expiresIn: "1d" }
             );
 
+            try {
+                await createAuditLog(
+                    user.id,
+                    user.name || user.username || 'Unknown User',
+                    deviceId || 'Web Client',
+                    'User Authentication',
+                    'login',
+                    null,
+                    { user_id: user.id, username: user.username, role: user.role, status: 'successful_login' }
+                );
+            } catch (err) {}
+
             return res.status(200).json({
                 success: true,
                 message: "Login successful",
@@ -116,6 +128,18 @@ const login = async (req, res) => {
                     process.env.JWT_SECRET,
                     { expiresIn: "1d" }
                 );
+
+                try {
+                    await createAuditLog(
+                        user.id,
+                        user.name || user.username || 'Unknown User',
+                        deviceId || 'Web Client',
+                        'User Authentication',
+                        'login',
+                        null,
+                        { user_id: user.id, username: user.username, role: user.role, status: 'successful_login' }
+                    );
+                } catch (err) {}
 
                 return res.status(200).json({
                     success: true,

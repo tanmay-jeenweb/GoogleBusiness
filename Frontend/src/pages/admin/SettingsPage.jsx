@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import Navbar from "../../components/Navbar";
+import DataTable from "../../components/DataTable";
 import { fetchKeywordRules, createKeywordRule, updateKeywordRule, deleteKeywordRule } from "../../api/settingsApi";
 
 export default function SettingsPage() {
@@ -108,134 +109,131 @@ export default function SettingsPage() {
         }
     };
 
+    // DataTable Column Definitions
+    const columns = useMemo(() => [
+        {
+            key: "keyword_match",
+            label: "Keyword Match",
+            sortable: true,
+            minWidth: "220px",
+            render: (rule) => (
+                <span className="font-bold text-slate-900 font-mono">
+                    "{rule.keyword_match}"
+                </span>
+            )
+        },
+        {
+            key: "activity_classification",
+            label: "Activity Classification",
+            sortable: true,
+            minWidth: "200px",
+            render: (rule) => (
+                <span className="font-semibold text-blue-700 capitalize">
+                    {rule.activity_classification}
+                </span>
+            )
+        },
+        {
+            key: "priority",
+            label: "Priority",
+            sortable: true,
+            minWidth: "100px",
+            render: (rule) => (
+                <span className="text-center font-extrabold text-slate-800 font-mono block">
+                    {rule.priority}
+                </span>
+            )
+        },
+        {
+            key: "status",
+            label: "Status",
+            sortable: true,
+            minWidth: "120px",
+            render: (rule) => (
+                <div className="text-center">
+                    <button
+                        type="button"
+                        onClick={() => toggleRuleStatus(rule)}
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border transition-all cursor-pointer ${
+                            rule.status === "ACTIVE"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                        }`}
+                    >
+                        {rule.status}
+                    </button>
+                </div>
+            )
+        },
+        {
+            key: "actions",
+            label: "Actions",
+            sortable: false,
+            minWidth: "140px",
+            render: (rule) => (
+                <div className="text-right space-x-2">
+                    <button
+                        type="button"
+                        onClick={() => openEditModal(rule)}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
+                    >
+                        Edit
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => handleDelete(rule.id)}
+                        className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
+                    >
+                        Delete
+                    </button>
+                </div>
+            )
+        }
+    ], []);
+
     return (
         <div className="flex flex-col min-h-screen bg-slate-50 font-sans text-slate-900">
             <Navbar title="System Settings" />
 
-            <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6">
+            <main className="flex-1 w-full max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8 space-y-6 flex flex-col">
                 
                 {/* Header Title */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
                     <div>
                         <div className="flex items-center gap-2 mb-1">
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200">
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wider">
                                 Management Suite
                             </span>
                         </div>
-                        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
                             System Configuration
                         </h1>
-                        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                        <p className="text-xs text-slate-500 mt-0.5">
                             Configure description parsing rules and keyword priorities for transaction categorization
                         </p>
                     </div>
 
                     <button
                         onClick={openCreateModal}
-                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-xl shadow-sm transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
+                        className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold rounded-lg shadow-2xs transition-all cursor-pointer flex items-center gap-2 self-start sm:self-auto"
                     >
                         <i className="fa-solid fa-plus text-xs"></i>
                         Create Keyword Rule
                     </button>
                 </div>
 
-                {/* MAIN CONTENT: ACTIVITY KEYWORD RULES TABLE */}
-                <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-4 border-b border-slate-100">
-                        <div>
-                            <h3 className="text-base font-extrabold text-slate-900">
-                                Description Parsing Keywords
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                                Keyword priority rules automatically categorize uploaded reseller billing transactions
-                            </p>
-                        </div>
-
-                        <span className="px-3 py-1 bg-slate-100 border border-slate-200 rounded-xl text-xs font-extrabold text-slate-700 self-start sm:self-auto">
-                            {rules.length} Configured Rules
-                        </span>
-                    </div>
-
-                    {/* Keyword Rules Table */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse text-xs">
-                            <thead>
-                                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                                    <th className="py-3.5 px-4">Keyword Match</th>
-                                    <th className="py-3.5 px-4">Activity Classification</th>
-                                    <th className="py-3.5 px-4 text-center">Priority</th>
-                                    <th className="py-3.5 px-4 text-center">Status</th>
-                                    <th className="py-3.5 px-4 text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                                {loading ? (
-                                    <tr>
-                                        <td colSpan="5" className="py-12 text-center text-slate-400">
-                                            <i className="fa-solid fa-circle-notch fa-spin text-xl mb-2 text-blue-600 block"></i>
-                                            Loading keyword rules from MySQL...
-                                        </td>
-                                    </tr>
-                                ) : rules.length > 0 ? (
-                                    rules.map((rule) => (
-                                        <tr key={rule.id} className="hover:bg-slate-50/80 transition-colors">
-                                            
-                                            {/* Keyword Match */}
-                                            <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">
-                                                "{rule.keyword_match}"
-                                            </td>
-
-                                            {/* Activity Classification */}
-                                            <td className="py-3.5 px-4 font-semibold text-blue-700 capitalize">
-                                                {rule.activity_classification}
-                                            </td>
-
-                                            {/* Priority */}
-                                            <td className="py-3.5 px-4 text-center font-extrabold text-slate-800 font-mono">
-                                                {rule.priority}
-                                            </td>
-
-                                            {/* Status */}
-                                            <td className="py-3.5 px-4 text-center">
-                                                <button
-                                                    onClick={() => toggleRuleStatus(rule)}
-                                                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border transition-all cursor-pointer ${
-                                                        rule.status === "ACTIVE"
-                                                            ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                                            : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
-                                                    }`}
-                                                >
-                                                    {rule.status}
-                                                </button>
-                                            </td>
-
-                                            {/* Actions */}
-                                            <td className="py-3.5 px-4 text-right space-x-2">
-                                                <button
-                                                    onClick={() => openEditModal(rule)}
-                                                    className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
-                                                >
-                                                    Edit
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(rule.id)}
-                                                    className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-600 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
-                                                >
-                                                    Delete
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="5" className="py-12 text-center text-slate-400 text-xs">
-                                            No keyword rules configured.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                {/* MAIN CONTENT: DATATABLE */}
+                <div className="flex-1 flex flex-col w-full">
+                    <DataTable
+                        tableId="system_configuration_table"
+                        title="Description Parsing Keywords"
+                        data={rules}
+                        columns={columns}
+                        loading={loading}
+                        defaultPageSize={8}
+                        showTopPagination={false}
+                        searchPlaceholder="Search keyword rules..."
+                    />
                 </div>
 
             </main>
@@ -243,14 +241,14 @@ export default function SettingsPage() {
             {/* CREATE / EDIT KEYWORD RULE MODAL */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-5">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md p-6 space-y-5">
                         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                             <h3 className="text-base font-extrabold text-slate-900">
                                 {editingRule ? "Edit Keyword Rule" : "Create Keyword Rule"}
                             </h3>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="text-slate-400 hover:text-slate-600 transition-colors"
+                                className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                             >
                                 <i className="fa-solid fa-xmark text-base"></i>
                             </button>
@@ -265,7 +263,7 @@ export default function SettingsPage() {
                                     placeholder='e.g. "Commitment increase of"'
                                     value={formData.keyword_match}
                                     onChange={(e) => setFormData({ ...formData, keyword_match: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-500"
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 font-mono focus:outline-none focus:border-blue-500"
                                 />
                             </div>
 
@@ -277,13 +275,13 @@ export default function SettingsPage() {
                                     placeholder='e.g. "commitment increase"'
                                     value={formData.activity_classification}
                                     onChange={(e) => setFormData({ ...formData, activity_classification: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500"
+                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-500"
                                 />
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                    <label className="block text-slate-700 mb-1">Priority (Higher = Evaluated First)</label>
+                                    <label className="block text-slate-700 mb-1">Priority (Higher = First)</label>
                                     <input
                                         type="number"
                                         required
@@ -291,7 +289,7 @@ export default function SettingsPage() {
                                         max="100"
                                         value={formData.priority}
                                         onChange={(e) => setFormData({ ...formData, priority: Number(e.target.value) })}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500 font-mono"
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-500 font-mono"
                                     />
                                 </div>
 
@@ -300,7 +298,7 @@ export default function SettingsPage() {
                                     <select
                                         value={formData.status}
                                         onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer"
+                                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-none focus:border-blue-500 cursor-pointer"
                                     >
                                         <option value="ACTIVE">ACTIVE</option>
                                         <option value="INACTIVE">INACTIVE</option>
@@ -312,14 +310,14 @@ export default function SettingsPage() {
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-xs transition-all cursor-pointer"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={submitting}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg text-xs transition-all cursor-pointer flex items-center gap-1.5"
                                 >
                                     {submitting ? "Saving..." : editingRule ? "Update Rule" : "Create Rule"}
                                 </button>
